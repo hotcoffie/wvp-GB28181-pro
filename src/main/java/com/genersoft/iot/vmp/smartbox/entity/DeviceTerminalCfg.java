@@ -11,7 +11,6 @@ public class DeviceTerminalCfg {
     private Long id;
     private String deviceId;
     private String passwd;
-    private Character deleted;
 
     public Long getId() {
         return id;
@@ -37,21 +36,12 @@ public class DeviceTerminalCfg {
         this.passwd = passwd;
     }
 
-    public Character getDeleted() {
-        return deleted;
-    }
-
-    public void setDeleted(Character deleted) {
-        this.deleted = deleted;
-    }
-
     @Override
     public String toString() {
         return "DeviceTerminalCfg{" +
                 "id=" + id +
                 ", deviceId='" + deviceId + '\'' +
                 ", passwd='" + passwd + '\'' +
-                ", deleted=" + deleted +
                 '}';
     }
 }

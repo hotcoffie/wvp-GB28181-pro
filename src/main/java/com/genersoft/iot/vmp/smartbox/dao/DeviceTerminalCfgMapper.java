@@ -5,6 +5,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+
 /**
  * Description
  *
@@ -15,6 +17,6 @@ import org.springframework.stereotype.Repository;
 @Mapper
 @Repository
 public interface DeviceTerminalCfgMapper {
-    @Select("select * from device_terminal_cfg where deviceId = #{deviceId} and deleted='N'")
-    DeviceTerminalCfg getDeviceTerminalCfg(String deviceId);
+    @Select("select * from device_terminal_cfg where deviceId = #{deviceId}")
+    List<DeviceTerminalCfg> list(String deviceId);
 }

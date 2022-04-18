@@ -35,6 +35,7 @@ import javax.sip.message.Response;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -101,19 +102,24 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
                 sendResponse(evt, response);
                 return;
             }
-			// 自定义校验，检测是否为系统添加的合法设备
-			DeviceTerminalCfg dtc = deviceTerminalCfgMapper.getDeviceTerminalCfg(deviceId);
-			if (dtc == null) {
-				logger.info("[{}]未授权的设备编码, 回复403", requestAddress);
-				response = getMessageFactory().createResponse(Response.FORBIDDEN, request);
-				response.setReasonPhrase("wrong password");
-				sendResponse(evt, response);
-				return;
-			}
+            // 自定义校验，检测是否为系统添加的合法设备
+            List<DeviceTerminalCfg> cfgList = deviceTerminalCfgMapper.list(deviceId);
+            if (cfgList == null || cfgList.isEmpty()) {
+                logger.info("[{}]未授权的设备编码, 回复403", requestAddress);
+                response = getMessageFactory().createResponse(Response.FORBIDDEN, request);
+                response.setReasonPhrase("wrong password");
+                sendResponse(evt, response);
+                return;
+            }
             // 校验密码是否正确
-            // passwordCorrect = StringUtils.isEmpty(sipConfig.getPassword()) ||
-                    // new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, sipConfig.getPassword());
-			passwordCorrect = new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, dtc.getPasswd());
+            passwordCorrect = cfgList.stream().anyMatch(cfg -> {
+                try {
+                    return new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, cfg.getPasswd());
+                } catch (Exception e) {
+                    logger.error("校验密码失败: {}", e.getMessage());
+                }
+                return false;
+            });
             // 未携带授权头或者密码错误 回复401
 
             if (!passwordCorrect) {
