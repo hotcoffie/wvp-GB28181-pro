@@ -4,6 +4,7 @@ import com.genersoft.iot.vmp.conf.UserSetting;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -27,6 +28,9 @@ import java.util.List;
 public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     private final static Logger logger = LoggerFactory.getLogger(WebSecurityConfig.class);
+
+    @Value("${tac.ip:127.0.0.1}")
+    private String tacIp;
 
     @Autowired
     private UserSetting userSetting;
@@ -126,6 +130,10 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         // 设置允许添加静态文件
         http.headers().contentTypeOptions().disable();
         http.authorizeRequests()
+
+                // 自定义白名单放行tac
+                .antMatchers("/api/gb_record/**","/api/playback/**").hasIpAddress(tacIp)
+
                 // 放行接口
                 .antMatchers("/api/user/login","/index/hook/**").permitAll()
                 // 除上面外的所有请求全部需要鉴权认证
