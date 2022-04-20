@@ -10,6 +10,7 @@ package com.genersoft.iot.vmp.smartbox.entity;
 public class DeviceTerminalCfg {
     private Long id;
     private String deviceId;
+    private String channelId;
     private String passwd;
 
     public Long getId() {
@@ -28,6 +29,14 @@ public class DeviceTerminalCfg {
         this.deviceId = deviceId;
     }
 
+    public String getChannelId() {
+        return channelId;
+    }
+
+    public void setChannelId(String channelId) {
+        this.channelId = channelId;
+    }
+
     public String getPasswd() {
         return passwd;
     }
@@ -41,6 +50,7 @@ public class DeviceTerminalCfg {
         return "DeviceTerminalCfg{" +
                 "id=" + id +
                 ", deviceId='" + deviceId + '\'' +
+                ", channelId='" + channelId + '\'' +
                 ", passwd='" + passwd + '\'' +
                 '}';
     }
