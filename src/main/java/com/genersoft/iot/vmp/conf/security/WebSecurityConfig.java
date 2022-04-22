@@ -132,7 +132,8 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
         http.authorizeRequests()
 
                 // 自定义白名单放行tac
-                .antMatchers("/api/gb_record/**","/api/playback/**").hasIpAddress(tacIp)
+                .antMatchers("/api/gb_record/**","/api/playback/**")
+                .access("isAuthenticated() or hasIpAddress('"+tacIp+"')")
 
                 // 放行接口
                 .antMatchers("/api/user/login","/index/hook/**").permitAll()

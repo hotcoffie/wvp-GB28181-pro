@@ -55,7 +55,7 @@ export default {
            dom.style.height = (9/16 ) * dom.clientWidth + "px"
          }
          dom.style.height = dom.parentNode.clientHeight + "px";
-         dom.style.width = dom.parentNode.clientWidth + "px";
+         // dom.style.width = dom.parentNode.clientWidth + "px";
 
           if (typeof (this.videoUrl) == "undefined") {
             this.videoUrl = paramUrl;
