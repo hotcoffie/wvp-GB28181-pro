@@ -8,6 +8,8 @@ call git checkout wvp-28181-2.0
 call:build
 COPY D:\workspace\smart-box-vedio\target\wvp-*.jar wvp.jar
 echo '完成wvp打包'
+call git checkout smart-box
+pause
 goto:end
 
 :build
