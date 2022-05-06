@@ -150,7 +150,9 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
                 response = getMessageFactory().createResponse(Response.BAD_REQUEST, request);
                 ServerTransaction serverTransaction = getServerTransaction(evt);
                 serverTransaction.sendResponse(response);
-                if (serverTransaction.getDialog() != null) serverTransaction.getDialog().delete();
+                if (serverTransaction.getDialog() != null) {
+                    serverTransaction.getDialog().delete();
+                }
                 return;
             }
             // 添加Contact头
@@ -215,7 +217,9 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
             return;
         }
         serverTransaction.sendResponse(response);
-        if (serverTransaction.getDialog() != null) serverTransaction.getDialog().delete();
+        if (serverTransaction.getDialog() != null) {
+            serverTransaction.getDialog().delete();
+        }
     }
 
 }
