@@ -107,8 +107,14 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
 
             // 校验密码是否正确
             passwordCorrect = StringUtils.isEmpty(sipConfig.getPassword()) ||
-                    new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, cfgList.get(0).getPasswd());
-            // 未携带授权头或者密码错误 回复401
+                    cfgList.stream().anyMatch(cfg -> {
+                        try {
+                            return new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, cfg.getPasswd());
+                        } catch (Exception e) {
+                            logger.error("校验密码失败: {}", e.getMessage());
+                        }
+                        return false;
+                    });
 
             if (!passwordCorrect) {
                 // 注册失败
@@ -179,11 +185,11 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
             // 注册成功
             // 保存到redis
             if (registerFlag) {
-                logger.info("[注册成功] deviceId: {}->{}",  deviceId, requestAddress);
+                logger.info("[注册成功] deviceId: {}->{}", deviceId, requestAddress);
                 device.setRegisterTime(DateUtil.getNow());
                 deviceService.online(device);
             } else {
-                logger.info("[注销成功] deviceId: {}->{}" ,deviceId, requestAddress);
+                logger.info("[注销成功] deviceId: {}->{}", deviceId, requestAddress);
                 deviceService.offline(deviceId);
             }
         } catch (SipException | InvalidArgumentException | NoSuchAlgorithmException | ParseException e) {
