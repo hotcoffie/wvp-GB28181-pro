@@ -7,8 +7,6 @@ import com.genersoft.iot.vmp.gb28181.transmit.SIPProcessorObserver;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.ISIPRequestProcessor;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.SIPRequestProcessorParent;
 import com.genersoft.iot.vmp.service.IDeviceService;
-import com.genersoft.iot.vmp.smartbox.dao.DeviceTerminalCfgMapper;
-import com.genersoft.iot.vmp.smartbox.entity.DeviceTerminalCfg;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import gov.nist.javax.sip.RequestEventExt;
 import gov.nist.javax.sip.address.AddressImpl;
@@ -33,7 +31,6 @@ import javax.sip.message.Response;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.Calendar;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -51,9 +48,6 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
 
     @Autowired
     private SIPProcessorObserver sipProcessorObserver;
-
-    @Autowired
-    private DeviceTerminalCfgMapper deviceTerminalCfgMapper;
 
     @Autowired
     private IDeviceService deviceService;
@@ -79,7 +73,7 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
             ExpiresHeader expiresHeader = (ExpiresHeader) request.getHeader(Expires.NAME);
             Response response = null;
             boolean passwordCorrect = false;
-            // 注册标志  0：未携带授权头或者密码错误  1：注册成功   2：注销成功
+            // 注册标志
             boolean registerFlag = false;
             FromHeader fromHeader = (FromHeader) request.getHeader(FromHeader.NAME);
             AddressImpl address = (AddressImpl) fromHeader.getAddress();
@@ -94,15 +88,7 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
                 sendResponse(evt, response);
                 return;
             }
-            // 自定义校验，检测是否为系统添加的合法设备
-            List<DeviceTerminalCfg> cfgList = deviceTerminalCfgMapper.list(deviceId);
-            if (cfgList == null || cfgList.isEmpty()) {
-                logger.info("[{}]未授权的设备编码, 回复403", requestAddress);
-                response = getMessageFactory().createResponse(Response.FORBIDDEN, request);
-                response.setReasonPhrase("wrong password");
-                sendResponse(evt, response);
-                return;
-            }
+
             // 校验密码是否正确
             passwordCorrect = StringUtils.isEmpty(sipConfig.getPassword()) ||
                     new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, sipConfig.getPassword());
