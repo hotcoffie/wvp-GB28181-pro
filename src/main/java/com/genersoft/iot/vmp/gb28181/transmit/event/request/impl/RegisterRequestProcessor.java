@@ -7,6 +7,8 @@ import com.genersoft.iot.vmp.gb28181.transmit.SIPProcessorObserver;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.ISIPRequestProcessor;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.SIPRequestProcessorParent;
 import com.genersoft.iot.vmp.service.IDeviceService;
+import com.genersoft.iot.vmp.smartbox.dao.DeviceTerminalCfgMapper;
+import com.genersoft.iot.vmp.smartbox.entity.DeviceTerminalCfg;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import gov.nist.javax.sip.RequestEventExt;
 import gov.nist.javax.sip.address.AddressImpl;
@@ -31,6 +33,7 @@ import javax.sip.message.Response;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -51,6 +54,9 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
 
     @Autowired
     private IDeviceService deviceService;
+
+    @Autowired
+    private DeviceTerminalCfgMapper deviceTerminalCfgMapper;
 
     @Override
     public void afterPropertiesSet() throws Exception {
@@ -89,9 +95,19 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
                 return;
             }
 
+            // 自定义校验，检测是否为系统添加的合法设备
+            List<DeviceTerminalCfg> cfgList = deviceTerminalCfgMapper.list(deviceId);
+            if (cfgList == null || cfgList.isEmpty()) {
+                logger.info("[{}]未授权的设备编码, 回复403", requestAddress);
+                response = getMessageFactory().createResponse(Response.FORBIDDEN, request);
+                response.setReasonPhrase("wrong password");
+                sendResponse(evt, response);
+                return;
+            }
+
             // 校验密码是否正确
             passwordCorrect = StringUtils.isEmpty(sipConfig.getPassword()) ||
-                    new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, sipConfig.getPassword());
+                    new DigestServerAuthenticationHelper().doAuthenticatePlainTextPassword(request, cfgList.get(0).getPasswd());
             // 未携带授权头或者密码错误 回复401
 
             if (!passwordCorrect) {
