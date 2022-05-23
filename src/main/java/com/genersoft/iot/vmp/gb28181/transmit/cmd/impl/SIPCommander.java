@@ -10,7 +10,7 @@ import com.genersoft.iot.vmp.gb28181.event.SipSubscribe;
 import com.genersoft.iot.vmp.gb28181.session.VideoStreamSessionManager;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.ISIPCommander;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.SIPRequestHeaderProvider;
-import com.genersoft.iot.vmp.gb28181.utils.DateUtil;
+import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.gb28181.utils.NumericUtil;
 import com.genersoft.iot.vmp.media.zlm.ZLMHttpHookSubscribe;
 import com.genersoft.iot.vmp.media.zlm.dto.MediaServerItem;
@@ -37,7 +37,9 @@ import javax.sip.header.*;
 import javax.sip.message.Request;
 import java.lang.reflect.Field;
 import java.text.ParseException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 
 /**    
  * @description:设备能力接口，用于定义设备的控制、查询能力   
@@ -49,7 +51,7 @@ import java.util.HashSet;
 public class SIPCommander implements ISIPCommander {
 
 	private final Logger logger = LoggerFactory.getLogger(SIPCommander.class);
-	
+
 	@Autowired
 	private SipConfig sipConfig;
 
@@ -368,7 +370,7 @@ public class SIPCommander implements ISIPCommander {
 			//
 			StringBuffer content = new StringBuffer(200);
 			content.append("v=0\r\n");
-			content.append("o="+ sipConfig.getId()+" 0 0 IN IP4 "+ mediaServerItem.getSdpIp() +"\r\n");
+			content.append("o="+ channelId+" 0 0 IN IP4 "+ mediaServerItem.getSdpIp() +"\r\n");
 			content.append("s=Play\r\n");
 			content.append("c=IN IP4 "+ mediaServerItem.getSdpIp() +"\r\n");
 			content.append("t=0 0\r\n");
@@ -387,8 +389,7 @@ public class SIPCommander implements ISIPCommander {
 				content.append("a=rtpmap:126 H264/90000\r\n");
 				content.append("a=rtpmap:125 H264S/90000\r\n");
 				content.append("a=fmtp:125 profile-level-id=42e01e\r\n");
-				content.append("a=rtpmap:99 MP4V-ES/90000\r\n");
-				content.append("a=fmtp:99 profile-level-id=3\r\n");
+				content.append("a=rtpmap:99 H265/90000\r\n");
 				content.append("a=rtpmap:98 H264/90000\r\n");
 				content.append("a=rtpmap:97 MPEG4/90000\r\n");
 				if("TCP-PASSIVE".equals(streamMode)){ // tcp被动模式
@@ -400,16 +401,17 @@ public class SIPCommander implements ISIPCommander {
 				}
 			}else {
 				if("TCP-PASSIVE".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 97 98 99\r\n");
 				}else if ("TCP-ACTIVE".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 97 98 99\r\n");
 				}else if("UDP".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" RTP/AVP 96 97 98 99\r\n");
 				}
 				content.append("a=recvonly\r\n");
 				content.append("a=rtpmap:96 PS/90000\r\n");
 				content.append("a=rtpmap:98 H264/90000\r\n");
 				content.append("a=rtpmap:97 MPEG4/90000\r\n");
+				content.append("a=rtpmap:99 H265/90000\r\n");
 				if ("TCP-PASSIVE".equals(streamMode)) { // tcp被动模式
 					content.append("a=setup:passive\r\n");
 					content.append("a=connection:new\r\n");
@@ -465,7 +467,7 @@ public class SIPCommander implements ISIPCommander {
 
 			StringBuffer content = new StringBuffer(200);
 	        content.append("v=0\r\n");
-	        content.append("o="+sipConfig.getId()+" 0 0 IN IP4 " + mediaServerItem.getSdpIp() + "\r\n");
+	        content.append("o="+channelId+" 0 0 IN IP4 " + mediaServerItem.getSdpIp() + "\r\n");
 	        content.append("s=Playback\r\n");
 	        content.append("u="+channelId+":0\r\n");
 	        content.append("c=IN IP4 "+mediaServerItem.getSdpIp()+"\r\n");
@@ -488,8 +490,7 @@ public class SIPCommander implements ISIPCommander {
 				content.append("a=rtpmap:126 H264/90000\r\n");
 				content.append("a=rtpmap:125 H264S/90000\r\n");
 				content.append("a=fmtp:125 profile-level-id=42e01e\r\n");
-				content.append("a=rtpmap:99 MP4V-ES/90000\r\n");
-				content.append("a=fmtp:99 profile-level-id=3\r\n");
+				content.append("a=rtpmap:99 H265/90000\r\n");
 				content.append("a=rtpmap:98 H264/90000\r\n");
 				content.append("a=rtpmap:97 MPEG4/90000\r\n");
 				if("TCP-PASSIVE".equals(streamMode)){ // tcp被动模式
@@ -501,16 +502,17 @@ public class SIPCommander implements ISIPCommander {
 				}
 			}else {
 				if("TCP-PASSIVE".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 97 98 99\r\n");
 				}else if ("TCP-ACTIVE".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 97 98 99\r\n");
 				}else if("UDP".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" RTP/AVP 96 97 98 99\r\n");
 				}
 				content.append("a=recvonly\r\n");
 				content.append("a=rtpmap:96 PS/90000\r\n");
-				content.append("a=rtpmap:98 H264/90000\r\n");
 				content.append("a=rtpmap:97 MPEG4/90000\r\n");
+				content.append("a=rtpmap:98 H264/90000\r\n");
+				content.append("a=rtpmap:99 H265/90000\r\n");
 				if("TCP-PASSIVE".equals(streamMode)){ // tcp被动模式
 					content.append("a=setup:passive\r\n");
 					content.append("a=connection:new\r\n");
@@ -575,7 +577,7 @@ public class SIPCommander implements ISIPCommander {
 
 			StringBuffer content = new StringBuffer(200);
 	        content.append("v=0\r\n");
-	        content.append("o="+sipConfig.getId()+" 0 0 IN IP4 " + mediaServerItem.getSdpIp() + "\r\n");
+	        content.append("o="+channelId+" 0 0 IN IP4 " + mediaServerItem.getSdpIp() + "\r\n");
 	        content.append("s=Download\r\n");
 	        content.append("u="+channelId+":0\r\n");
 	        content.append("c=IN IP4 "+mediaServerItem.getSdpIp()+"\r\n");
@@ -611,16 +613,17 @@ public class SIPCommander implements ISIPCommander {
 				}
 			}else {
 				if("TCP-PASSIVE".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 97 98 99\r\n");
 				}else if ("TCP-ACTIVE".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" TCP/RTP/AVP 96 97 98 99\r\n");
 				}else if("UDP".equals(streamMode)) {
-					content.append("m=video "+ ssrcInfo.getPort() +" RTP/AVP 96 98 97\r\n");
+					content.append("m=video "+ ssrcInfo.getPort() +" RTP/AVP 96 97 98 99\r\n");
 				}
 				content.append("a=recvonly\r\n");
 				content.append("a=rtpmap:96 PS/90000\r\n");
-				content.append("a=rtpmap:98 H264/90000\r\n");
 				content.append("a=rtpmap:97 MPEG4/90000\r\n");
+				content.append("a=rtpmap:98 H264/90000\r\n");
+				content.append("a=rtpmap:99 H265/90000\r\n");
 				if("TCP-PASSIVE".equals(streamMode)){ // tcp被动模式
 					content.append("a=setup:passive\r\n");
 					content.append("a=connection:new\r\n");
@@ -649,6 +652,17 @@ public class SIPCommander implements ISIPCommander {
 					(MediaServerItem mediaServerItemInUse, JSONObject json)->{
 						hookEvent.call(new InviteStreamInfo(mediaServerItem, json, callIdHeader.getCallId(), "rtp", ssrcInfo.getStream()));
 						subscribe.removeSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey);
+						subscribeKey.put("regist", false);
+						subscribeKey.put("schema", "rtmp");
+						// 添加流注销的订阅，注销了后向设备发送bye
+						subscribe.addSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey,
+								(MediaServerItem mediaServerItemForEnd, JSONObject jsonForEnd)->{
+									ClientTransaction transaction = streamSession.getTransaction(device.getDeviceId(), channelId, ssrcInfo.getStream(), callIdHeader.getCallId());
+									if (transaction != null) {
+										logger.info("[录像]下载结束， 发送BYE");
+										streamByeCmd(device.getDeviceId(), channelId, ssrcInfo.getStream(), callIdHeader.getCallId());
+									}
+								});
 					});
 
 	        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), null, "fromplybck" + tm, null, callIdHeader, ssrcInfo.getSsrc());
@@ -681,10 +695,10 @@ public class SIPCommander implements ISIPCommander {
 	@Override
 	public void streamByeCmd(String deviceId, String channelId, String stream, String callId, SipSubscribe.Event okEvent) {
 		try {
-			SsrcTransaction ssrcTransaction = streamSession.getSsrcTransaction(deviceId, channelId, null, stream);
-			ClientTransaction transaction = streamSession.getTransactionByStream(deviceId, channelId, stream);
+			SsrcTransaction ssrcTransaction = streamSession.getSsrcTransaction(deviceId, channelId, callId, stream);
+			ClientTransaction transaction = streamSession.getTransaction(deviceId, channelId, stream, callId);
 
-			if (transaction == null) {
+			if (transaction == null ) {
 				logger.warn("[ {} -> {}]停止视频流的时候发现事务已丢失", deviceId, channelId);
 				SipSubscribe.EventResult<Object> eventResult = new SipSubscribe.EventResult<>();
 				if (okEvent != null) {
@@ -1643,13 +1657,25 @@ public class SIPCommander implements ISIPCommander {
 		} else if("UDP".equals(device.getTransport())) {
 			clientTransaction = udpSipProvider.getNewClientTransaction(request);
 		}
-
+		if (request.getHeader(UserAgentHeader.NAME) == null) {
+			List<String> agentParam = new ArrayList<>();
+			agentParam.add("wvp-pro");
+			// TODO 添加版本信息以及日期
+			UserAgentHeader userAgentHeader = null;
+			try {
+				userAgentHeader = sipFactory.createHeaderFactory().createUserAgentHeader(agentParam);
+			} catch (ParseException e) {
+				throw new RuntimeException(e);
+			}
+			request.addHeader(userAgentHeader);
+		}
 		CallIdHeader callIdHeader = (CallIdHeader)request.getHeader(CallIdHeader.NAME);
 		// 添加错误订阅
 		if (errorEvent != null) {
 			sipSubscribe.addErrorSubscribe(callIdHeader.getCallId(), (eventResult -> {
 				errorEvent.response(eventResult);
 				sipSubscribe.removeErrorSubscribe(eventResult.callId);
+				sipSubscribe.removeOkSubscribe(eventResult.callId);
 			}));
 		}
 		// 添加订阅
@@ -1657,6 +1683,7 @@ public class SIPCommander implements ISIPCommander {
 			sipSubscribe.addOkSubscribe(callIdHeader.getCallId(), eventResult ->{
 				okEvent.response(eventResult);
 				sipSubscribe.removeOkSubscribe(eventResult.callId);
+				sipSubscribe.removeErrorSubscribe(eventResult.callId);
 			});
 		}
 
