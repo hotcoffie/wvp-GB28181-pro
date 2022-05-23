@@ -1,23 +1,19 @@
 package com.genersoft.iot.vmp.gb28181.transmit.event.request.impl;
 
-import com.genersoft.iot.vmp.common.VideoManagerConstants;
 import com.genersoft.iot.vmp.conf.SipConfig;
-import com.genersoft.iot.vmp.gb28181.auth.DigestServerAuthenticationHelper;
 import com.genersoft.iot.vmp.gb28181.bean.Device;
 import com.genersoft.iot.vmp.gb28181.bean.WvpSipDate;
-import com.genersoft.iot.vmp.gb28181.event.EventPublisher;
 import com.genersoft.iot.vmp.gb28181.transmit.SIPProcessorObserver;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.ISIPRequestProcessor;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.SIPRequestProcessorParent;
+import com.genersoft.iot.vmp.service.IDeviceService;
 import com.genersoft.iot.vmp.smartbox.dao.DeviceTerminalCfgMapper;
 import com.genersoft.iot.vmp.smartbox.entity.DeviceTerminalCfg;
-import com.genersoft.iot.vmp.service.IDeviceService;
-import com.genersoft.iot.vmp.storager.IRedisCatchStorage;
-import com.genersoft.iot.vmp.storager.IVideoManagerStorage;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import gov.nist.javax.sip.RequestEventExt;
 import gov.nist.javax.sip.address.AddressImpl;
 import gov.nist.javax.sip.address.SipUri;
+import gov.nist.javax.sip.clientauthutils.DigestServerAuthenticationHelper;
 import gov.nist.javax.sip.header.Expires;
 import gov.nist.javax.sip.header.SIPDateHeader;
 import org.slf4j.Logger;
@@ -52,15 +48,6 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
 
     @Autowired
     private SipConfig sipConfig;
-
-    @Autowired
-    private IRedisCatchStorage redisCatchStorage;
-
-    @Autowired
-    private IVideoManagerStorage storager;
-
-    @Autowired
-    private EventPublisher publisher;
 
     @Autowired
     private SIPProcessorObserver sipProcessorObserver;
