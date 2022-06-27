@@ -19,7 +19,7 @@ module.exports = {
         }
       },
       '/static/snap': {
-        target: 'http://localhost:18080',
+        target: 'http://101.200.133.21:18080',
         changeOrigin: true,
         // pathRewrite: {
         //   '^/static/snap': '/static/snap'

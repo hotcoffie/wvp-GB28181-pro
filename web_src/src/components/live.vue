@@ -14,11 +14,10 @@
         <el-main style="padding: 0;">
           <div style="width: 99%;height: 85vh;display: flex;flex-wrap: wrap;background-color: #000;">
             <div v-for="i in spilt" :key="i" class="play-box"
-                 :style="liveStyle" :class="{redborder:playerIdx == (i-1)}"
+                 :style="liveStyle"
                  @click="playerIdx = (i-1)">
-              <div v-if="!videoUrl[i-1]" style="color: #ffffff;font-size: 30px;font-weight: bold;">{{ i }}</div>
-              <player ref="player" v-else :videoUrl="videoUrl[i-1]" fluent autoplay @screenshot="shot"
-                      @destroy="destroy"/>
+              <video style="object-fit: fill;" controls ref="player" :src="videoUrl[i-1]" type="video/mp4">
+              </video>
             </div>
           </div>
         </el-main>
@@ -52,12 +51,16 @@ export default {
     };
   },
   mounted() {
-
   },
   created() {
     this.checkPlayByParam()
+    const that = this
+    this.$nextTick(() => {
+      window.onresize = () => {
+        that.updatePlayerDomSize()
+      }
+    })
   },
-
   computed: {
     liveStyle() {
       let style = {width: '100%', height: '100%'}
@@ -70,10 +73,12 @@ export default {
           break
       }
       this.$nextTick(() => {
-        for (let i = 0; i < this.spilt; i++) {
-          const player = this.$refs.player
-          player && player[i] && player[i].updatePlayerDomSize()
-        }
+        // for (let i = 0; i < this.spilt; i++) {
+        //   const player = this.$refs.player
+        //   player && player[i] && player[i].updatePlayerDomSize()
+        // }
+        console.log(1111111111)
+        this.updatePlayerDomSize()
       })
       return style
     }
@@ -103,6 +108,23 @@ export default {
     clearTimeout(this.updateLooper);
   },
   methods: {
+    updatePlayerDomSize() {
+      for (let i = 0; i < this.spilt; i++) {
+        let dom = this.$refs.player[i];
+        console.log(dom)
+        let width = dom.parentNode.clientWidth
+        let height = (9 / 16) * width
+
+        const clientHeight = Math.min(document.body.clientHeight, document.documentElement.clientHeight)
+        if (height > clientHeight) {
+          height = clientHeight
+          width = (16 / 9) * height
+        }
+
+        dom.style.width = width + 'px';
+        dom.style.height = height + "px";
+      }
+    },
     destroy(idx) {
       console.log(idx);
       this.clear(idx.substring(idx.length - 1))
@@ -137,8 +159,8 @@ export default {
         console.log('=====----=====')
         console.log(res)
         if (res.data.code == 0 && res.data.data) {
-          itemData.playUrl = res.data.data.httpsFlv
-          that.setPlayUrl(res.data.data.ws_flv, idxTmp)
+          itemData.playUrl = res.data.data.fmp4
+          that.setPlayUrl(res.data.data.fmp4, idxTmp)
         } else {
           that.$message.error(res.data.msg);
         }
