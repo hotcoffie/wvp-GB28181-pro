@@ -123,36 +123,19 @@ public class PlayServiceImpl implements IPlayService {
         result.onCompletion(()->{
             // 点播结束时调用截图接口
             // TODO 应该在上流时调用更好，结束也可能是错误结束
-            try {
-                String classPath = ResourceUtils.getURL("classpath:").getPath();
-                // 兼容打包为jar的class路径
-                if(classPath.contains("jar")) {
-                    classPath = classPath.substring(0, classPath.lastIndexOf("."));
-                    classPath = classPath.substring(0, classPath.lastIndexOf("/") + 1);
+            String path =  "static/static/snap/";
+            String fileName =  deviceId + "_" + channelId + ".jpg";
+            ResponseEntity responseEntity =  (ResponseEntity)result.getResult();
+            if (responseEntity != null && responseEntity.getStatusCode() == HttpStatus.OK) {
+                WVPResult wvpResult = (WVPResult)responseEntity.getBody();
+                if (Objects.requireNonNull(wvpResult).getCode() == 0) {
+                    StreamInfo streamInfoForSuccess = (StreamInfo)wvpResult.getData();
+                    MediaServerItem mediaInfo = mediaServerService.getOne(streamInfoForSuccess.getMediaServerId());
+                    String streamUrl = streamInfoForSuccess.getFmp4();
+                    // 请求截图
+                    logger.info("[请求截图]: " + fileName);
+                    zlmresTfulUtils.getSnap(mediaInfo, streamUrl, 15, 1, path, fileName);
                 }
-                if (classPath.startsWith("file:")) {
-                    classPath = classPath.substring(classPath.indexOf(":") + 1);
-                }
-                String path = classPath + "static/static/snap/";
-                // 兼容Windows系统路径（去除前面的“/”）
-                if(System.getProperty("os.name").contains("indows")) {
-                    path = path.substring(1);
-                }
-                String fileName =  deviceId + "_" + channelId + ".jpg";
-                ResponseEntity responseEntity =  (ResponseEntity)result.getResult();
-                if (responseEntity != null && responseEntity.getStatusCode() == HttpStatus.OK) {
-                    WVPResult wvpResult = (WVPResult)responseEntity.getBody();
-                    if (Objects.requireNonNull(wvpResult).getCode() == 0) {
-                        StreamInfo streamInfoForSuccess = (StreamInfo)wvpResult.getData();
-                        MediaServerItem mediaInfo = mediaServerService.getOne(streamInfoForSuccess.getMediaServerId());
-                        String streamUrl = streamInfoForSuccess.getFmp4();
-                        // 请求截图
-                        logger.info("[请求截图]: " + fileName);
-                        zlmresTfulUtils.getSnap(mediaInfo, streamUrl, 15, 1, path, fileName);
-                    }
-                }
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
             }
         });
         if (streamInfo != null) {
@@ -169,23 +152,32 @@ public class PlayServiceImpl implements IPlayService {
             MediaServerItem mediaInfo = mediaServerService.getOne(mediaServerId);
 
             JSONObject rtpInfo = zlmresTfulUtils.getRtpInfo(mediaInfo, streamId);
-            if (rtpInfo != null && rtpInfo.getBoolean("exist")) {
+            if(rtpInfo.getInteger("code") == 0){
+                if (rtpInfo.getBoolean("exist")) {
 
-                WVPResult wvpResult = new WVPResult();
-                wvpResult.setCode(0);
-                wvpResult.setMsg("success");
-                wvpResult.setData(streamInfo);
-                msg.setData(wvpResult);
+                    WVPResult wvpResult = new WVPResult();
+                    wvpResult.setCode(0);
+                    wvpResult.setMsg("success");
+                    wvpResult.setData(streamInfo);
+                    msg.setData(wvpResult);
 
-                resultHolder.invokeAllResult(msg);
-                if (hookEvent != null) {
-                    hookEvent.response(mediaServerItem, JSONObject.parseObject(JSON.toJSONString(streamInfo)));
+                    resultHolder.invokeAllResult(msg);
+                    if (hookEvent != null) {
+                        hookEvent.response(mediaServerItem, JSONObject.parseObject(JSON.toJSONString(streamInfo)));
+                    }
+                }else {
+                    redisCatchStorage.stopPlay(streamInfo);
+                    storager.stopPlay(streamInfo.getDeviceID(), streamInfo.getChannelId());
+                    streamInfo = null;
                 }
             }else {
+                //zlm连接失败
                 redisCatchStorage.stopPlay(streamInfo);
                 storager.stopPlay(streamInfo.getDeviceID(), streamInfo.getChannelId());
                 streamInfo = null;
+
             }
+
 
         }
         if (streamInfo == null) {
@@ -261,6 +253,11 @@ public class PlayServiceImpl implements IPlayService {
         }, userSetting.getPlayTimeout());
         final String ssrc = ssrcInfo.getSsrc();
         final String stream = ssrcInfo.getStream();
+        //端口获取失败的ssrcInfo 没有必要发送点播指令
+        if(ssrcInfo.getPort() <= 0){
+            logger.info("[点播端口分配异常]，deviceId={},channelId={},ssrcInfo={}", device.getDeviceId(), channelId, ssrcInfo);
+            return;
+        }
         cmder.playStreamCmd(mediaServerItem, ssrcInfo, device, channelId, (MediaServerItem mediaServerItemInuse, JSONObject response) -> {
             logger.info("收到订阅消息： " + response.toJSONString());
             dynamicTask.stop(timeOutTaskKey);

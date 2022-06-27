@@ -44,7 +44,7 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
 
     private final Logger logger = LoggerFactory.getLogger(RegisterRequestProcessor.class);
 
-    public String method = "REGISTER";
+    public final String method = "REGISTER";
 
     @Autowired
     private SipConfig sipConfig;
@@ -163,6 +163,7 @@ public class RegisterRequestProcessor extends SIPRequestProcessorParent implemen
                 device = new Device();
                 device.setStreamMode("UDP");
                 device.setCharset("GB2312");
+                device.setGeoCoordSys("WGS84");
                 device.setDeviceId(deviceId);
             }
             device.setIp(received);
