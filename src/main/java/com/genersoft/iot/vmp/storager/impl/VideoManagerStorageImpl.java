@@ -318,14 +318,14 @@ public class VideoManagerStorageImpl implements IVideoManagerStorage {
 		// 获取到所有正在播放的流
 		PageHelper.startPage(page, count);
 		List<DeviceChannel> all;
-		if (catalogUnderDevice != null && catalogUnderDevice) {
-			all = deviceChannelMapper.queryChannels(deviceId, deviceId, query, hasSubChannel, online);
+		// if (catalogUnderDevice != null && catalogUnderDevice) {
+		// 	all = deviceChannelMapper.queryChannels(deviceId, deviceId, query, hasSubChannel, online);
 			// 海康设备的parentId是SIP id
-			List<DeviceChannel> deviceChannels = deviceChannelMapper.queryChannels(deviceId, sipConfig.getId(), query, hasSubChannel, online);
-			all.addAll(deviceChannels);
-		}else {
+			// List<DeviceChannel> deviceChannels = deviceChannelMapper.queryChannels(deviceId, sipConfig.getId(), query, hasSubChannel, online);
+			// all.addAll(deviceChannels);
+		// }else {
 			all = deviceChannelMapper.queryChannels(deviceId, null, query, hasSubChannel, online);
-		}
+		// }
 		return new PageInfo<>(all);
 	}
 
