@@ -66,7 +66,7 @@ public interface DeviceChannelMapper {
             "WHERE " +
             "dc.deviceId = #{deviceId} " +
             " <if test='query != null'> AND (dc.channelId LIKE '%${query}%' OR dc.name LIKE '%${query}%' OR dc.name LIKE '%${query}%')</if> " +
-            " <if test='parentChannelId != null'> AND dc.parentId=#{parentChannelId} </if> " +
+            // " <if test='parentChannelId != null'> AND dc.parentId=#{parentChannelId} </if> " +
             " <if test='online == true' > AND dc.status=1</if>" +
             " <if test='online == false' > AND dc.status=0</if>" +
             " <if test='hasSubChannel == true' >  AND dc.subCount > 0 </if>" +
