@@ -1,12 +1,10 @@
 package com.genersoft.iot.vmp.storager.impl;
 
-import com.genersoft.iot.vmp.common.StreamInfo;
 import com.genersoft.iot.vmp.conf.SipConfig;
 import com.genersoft.iot.vmp.gb28181.bean.*;
 import com.genersoft.iot.vmp.gb28181.event.EventPublisher;
 import com.genersoft.iot.vmp.gb28181.event.subscribe.catalog.CatalogEvent;
 import com.genersoft.iot.vmp.media.zlm.dto.StreamProxyItem;
-import com.genersoft.iot.vmp.media.zlm.dto.StreamPushItem;
 import com.genersoft.iot.vmp.service.IGbStreamService;
 import com.genersoft.iot.vmp.service.bean.GPSMsgInfo;
 import com.genersoft.iot.vmp.storager.IRedisCatchStorage;
@@ -229,14 +227,14 @@ public class VideoManagerStorageImpl implements IVideoManagerStorage {
 		// 获取到所有正在播放的流
 		PageHelper.startPage(page, count);
 		List<DeviceChannel> all;
-		if (catalogUnderDevice != null && catalogUnderDevice) {
-			all = deviceChannelMapper.queryChannels(deviceId, deviceId, query, hasSubChannel, online);
-			// 海康设备的parentId是SIP id
-			List<DeviceChannel> deviceChannels = deviceChannelMapper.queryChannels(deviceId, sipConfig.getId(), query, hasSubChannel, online);
-			all.addAll(deviceChannels);
-		}else {
+		// if (catalogUnderDevice != null && catalogUnderDevice) {
+		// 	all = deviceChannelMapper.queryChannels(deviceId, deviceId, query, hasSubChannel, online);
+		// 	// 海康设备的parentId是SIP id
+		// 	List<DeviceChannel> deviceChannels = deviceChannelMapper.queryChannels(deviceId, sipConfig.getId(), query, hasSubChannel, online);
+		// 	all.addAll(deviceChannels);
+		// }else {
 			all = deviceChannelMapper.queryChannels(deviceId, null, query, hasSubChannel, online);
-		}
+		// }
 		return new PageInfo<>(all);
 	}
 

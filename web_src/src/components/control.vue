@@ -88,140 +88,12 @@
                 </el-descriptions-item>
               </el-descriptions>
             </div>
-            <div style="margin-top: 1rem">
-              <el-descriptions title="版本信息" border :column="1">
-                <template slot="extra">
-                  <el-button style="float: right;" type="primary" size="mini" icon="el-icon-document-copy" title="点击拷贝"
-                             v-clipboard="JSON.stringify(wvpServerVersion) || ''"
-                             @success="$message({type:'success', message:'成功拷贝到粘贴板'})"></el-button>
-                </template>
-                <el-descriptions-item v-for="(value, key, index) in wvpServerVersion" :key="key">
-                  <template slot="label">
-                    {{ getNameFromKey(key) }}
-                  </template>
-                  {{ value }}
-                </el-descriptions-item>
-              </el-descriptions>
-
-
-            </div>
           </div>
           <el-button type="primary" slot="reference" size="mini" @click="getWVPServerConfig()">信令服务器配置</el-button>
         </el-popover>
         <el-button style="margin-left: 1rem;" type="danger" size="mini" @click="reStartServer()">重启媒体服务器</el-button>
       </div>
     </div>
-    <!--    <div style="background-color: #FFFFFF; margin-bottom: 1rem; position: relative; padding: 0.5rem; text-align: left;">-->
-    <!--      <span style="font-size: 1rem; font-weight: bold;">控制台</span>-->
-    <!--      <div style="position: absolute; right: 17rem; top: 0.3rem;">-->
-    <!--        节点选择:-->
-    <!--        <el-select size="mini" @change="chooseMediaChange" style="width: 18rem; margin-right: 8rem;"-->
-    <!--                   v-model="mediaServerChoose" placeholder="请选择" default-first-option>-->
-    <!--          <el-option-->
-    <!--            v-for="item in mediaServerList"-->
-    <!--            :key="item.id"-->
-    <!--            :label="item.id + '( ' + item.streamIp + ' )'"-->
-    <!--            :value="item.id">-->
-    <!--          </el-option>-->
-    <!--        </el-select>-->
-    <!--        <span>{{ loadCount }}</span>-->
-    <!--      </div>-->
-    <!--      <div style="position: absolute; right: 1rem; top: 0.3rem;">-->
-    <!--        <el-popover placement="bottom" width="900" height="300" trigger="click">-->
-    <!--          <div style="height: 600px; overflow:auto; padding: 20px">-->
-    <!--            <el-descriptions v-for="(value, key, index) in serverConfig" :key="key" border :column="1"-->
-    <!--                             style="margin-bottom: 1rem">-->
-    <!--              <template slot="title">-->
-    <!--                {{ key }}-->
-    <!--              </template>-->
-    <!--              <el-descriptions-item v-for="(value1, key1, index1) in serverConfig[key]" :key="key1">-->
-    <!--                <template slot="label">-->
-    <!--                  {{ getMediaKeyNameFromKey(key1) }}-->
-    <!--                </template>-->
-    <!--                {{ value1 }}-->
-    <!--              </el-descriptions-item>-->
-    <!--            </el-descriptions>-->
-    <!--          </div>-->
-    <!--          <el-button type="primary" slot="reference" size="mini" @click="getServerConfig()">媒体服务器配置</el-button>-->
-    <!--        </el-popover>-->
-    <!--        <el-popover placement="bottom" width="900" height="300" trigger="click">-->
-    <!--          <div style="height: 600px;overflow:auto; padding: 20px">-->
-    <!--            <el-descriptions title="国标配置" border :column="1">-->
-    <!--              <template slot="extra">-->
-    <!--                <el-button style="float: right;" type="primary" size="mini" icon="el-icon-document-copy" title="点击拷贝"-->
-    <!--                           v-clipboard="JSON.stringify(wvpServerConfig.sip)|| ''"-->
-    <!--                           @success="$message({type:'success', message:'成功拷贝到粘贴板'})"></el-button>-->
-    <!--              </template>-->
-    <!--              <el-descriptions-item v-for="(value, key, index) in wvpServerConfig.sip" :key="key">-->
-    <!--                <template slot="label">-->
-    <!--                  {{ getNameFromKey(key) }}-->
-    <!--                </template>-->
-    <!--                {{ value }}-->
-    <!--              </el-descriptions-item>-->
-    <!--            </el-descriptions>-->
-
-    <!--            <div style="margin-top: 1rem">-->
-    <!--              <el-descriptions title="基础配置" border :column="1">-->
-    <!--                <template slot="extra">-->
-    <!--                  <el-button style="float: right;" type="primary" size="mini" icon="el-icon-document-copy" title="点击拷贝"-->
-    <!--                             v-clipboard="JSON.stringify(wvpServerConfig.base)|| ''"-->
-    <!--                             @success="$message({type:'success', message:'成功拷贝到粘贴板'})"></el-button>-->
-    <!--                </template>-->
-    <!--                <el-descriptions-item v-for="(value, key, index) in wvpServerConfig.base" :key="key">-->
-    <!--                  <template slot="label">-->
-    <!--                    {{ getNameFromKey(key) }}-->
-    <!--                  </template>-->
-    <!--                  <div v-if="key === 'interfaceAuthenticationExcludes'">-->
-    <!--                    <el-dropdown>-->
-    <!--                                      <span class="el-dropdown-link">-->
-    <!--                                        查看<i class="el-icon-arrow-down el-icon&#45;&#45;right"></i>-->
-    <!--                                      </span>-->
-    <!--                      <el-dropdown-menu slot="dropdown">-->
-    <!--                        <el-dropdown-item-->
-    <!--                          v-for="(value, key, index) in wvpServerConfig.base.interfaceAuthenticationExcludes"-->
-    <!--                          :key="key">{{ value }}-->
-    <!--                        </el-dropdown-item>-->
-    <!--                      </el-dropdown-menu>-->
-    <!--                    </el-dropdown>-->
-    <!--                  </div>-->
-    <!--                  <div v-if="key !== 'interfaceAuthenticationExcludes'">-->
-    <!--                    <div v-if="value === true">-->
-    <!--                      已启用-->
-    <!--                    </div>-->
-    <!--                    <div v-if="value === false">-->
-    <!--                      未启用-->
-    <!--                    </div>-->
-    <!--                    <div v-if="value !== true && value !== false">-->
-    <!--                      {{ value }}-->
-    <!--                    </div>-->
-    <!--                  </div>-->
-
-    <!--                </el-descriptions-item>-->
-    <!--              </el-descriptions>-->
-    <!--            </div>-->
-    <!--            <div style="margin-top: 1rem">-->
-    <!--              <el-descriptions title="版本信息" border :column="1">-->
-    <!--                <template slot="extra">-->
-    <!--                  <el-button style="float: right;" type="primary" size="mini" icon="el-icon-document-copy" title="点击拷贝"-->
-    <!--                             v-clipboard="JSON.stringify(wvpServerVersion) || ''"-->
-    <!--                             @success="$message({type:'success', message:'成功拷贝到粘贴板'})"></el-button>-->
-    <!--                </template>-->
-    <!--                <el-descriptions-item v-for="(value, key, index) in wvpServerVersion" :key="key">-->
-    <!--                  <template slot="label">-->
-    <!--                    {{ getNameFromKey(key) }}-->
-    <!--                  </template>-->
-    <!--                  {{ value }}-->
-    <!--                </el-descriptions-item>-->
-    <!--              </el-descriptions>-->
-
-
-    <!--            </div>-->
-    <!--          </div>-->
-    <!--          <el-button type="primary" slot="reference" size="mini" @click="getWVPServerConfig()">信令服务器配置</el-button>-->
-    <!--        </el-popover>-->
-    <!--        <el-button style="margin-left: 1rem;" type="danger" size="mini" @click="reStartServer()">重启媒体服务器</el-button>-->
-    <!--      </div>-->
-    <!--    </div>-->
     <el-row style="width: 100%">
       <el-col :span="12">
         <div class="control-table" id="ThreadsLoad" style="margin-right:10px;">table1</div>
@@ -286,7 +158,7 @@ export default {
       wvpVisible: false,
       serverConfig: {},
       wvpServerConfig: {},
-      wvpServerVersion: {},
+      // wvpServerVersion: {},
       mediaServer: new MediaServer(),
       mediaServerChoose: null,
       loadCount: 0,
@@ -524,14 +396,6 @@ export default {
         that.wvpServerConfig = res.data.data;
         that.wvpVisible = true;
       });
-      this.$axios({
-        method: 'get',
-        url: '/api/server/version'
-      }).then(function (res) {
-        console.log(res)
-        that.wvpServerVersion = res.data.data;
-        that.wvpVisible = true;
-      });
     },
     reStartServer: function () {
       let that = this;
@@ -621,16 +485,6 @@ export default {
         "ptzSpeed": "云台控制速度",
         "id": "国标ID",
         "registerTimeInterval": "注册间隔",
-        "artifactId": "模块名称",
-        "version": "版本",
-        "project": "工程",
-        "git_Revision": "GIT修订版本",
-        "git_BRANCH": "GIT分支",
-        "git_URL": "GIT地址",
-        "build_DATE": "构建时间",
-        "create_By": "作者",
-        "git_Revision_SHORT": "GIT修订版本（短）",
-        "build_Jdk": "构建用JDK",
       };
       console.log(key + ": " + nameData[key])
 
