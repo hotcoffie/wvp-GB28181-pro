@@ -1,16 +1,15 @@
 package com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.notify.cmd;
 
 import com.genersoft.iot.vmp.conf.UserSetting;
-import com.genersoft.iot.vmp.gb28181.bean.BaiduPoint;
-import com.genersoft.iot.vmp.gb28181.bean.Device;
-import com.genersoft.iot.vmp.gb28181.bean.MobilePosition;
-import com.genersoft.iot.vmp.gb28181.bean.ParentPlatform;
+import com.genersoft.iot.vmp.gb28181.bean.*;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.SIPRequestProcessorParent;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.IMessageHandler;
 import com.genersoft.iot.vmp.gb28181.transmit.event.request.impl.message.notify.NotifyMessageHandler;
 import com.genersoft.iot.vmp.gb28181.utils.Coordtransform;
 import com.genersoft.iot.vmp.gb28181.utils.NumericUtil;
+import com.genersoft.iot.vmp.service.IDeviceChannelService;
 import com.genersoft.iot.vmp.storager.IVideoManagerStorage;
+import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.utils.GpsUtil;
 import org.dom4j.DocumentException;
 import org.dom4j.Element;
@@ -44,6 +43,9 @@ public class MobilePositionNotifyMessageHandler extends SIPRequestProcessorParen
     @Autowired
     private IVideoManagerStorage storager;
 
+    @Autowired
+    private IDeviceChannelService deviceChannelService;
+
     @Override
     public void afterPropertiesSet() throws Exception {
         notifyMessageHandler.addHandler(cmdType, this);
@@ -56,6 +58,7 @@ public class MobilePositionNotifyMessageHandler extends SIPRequestProcessorParen
             rootElement = getRootElement(evt, device.getCharset());
 
             MobilePosition mobilePosition = new MobilePosition();
+            mobilePosition.setCreateTime(DateUtil.getNow());
             if (!StringUtils.isEmpty(device.getName())) {
                 mobilePosition.setDeviceName(device.getName());
             }
@@ -80,16 +83,27 @@ public class MobilePositionNotifyMessageHandler extends SIPRequestProcessorParen
                 mobilePosition.setAltitude(0.0);
             }
             mobilePosition.setReportSource("Mobile Position");
-            // 默认来源坐标系为WGS-84处理
-            Double[] gcj02Point = Coordtransform.WGS84ToGCJ02(mobilePosition.getLongitude(), mobilePosition.getLatitude());
-            logger.info("GCJ02坐标：" + gcj02Point[0] + ", " + gcj02Point[1]);
-            mobilePosition.setGeodeticSystem("GCJ-02");
-            mobilePosition.setCnLng(gcj02Point[0] + "");
-            mobilePosition.setCnLat(gcj02Point[1] + "");
-            if (!userSetting.getSavePositionHistory()) {
-                storager.clearMobilePositionsByDeviceId(device.getDeviceId());
+
+
+            // 更新device channel 的经纬度
+            DeviceChannel deviceChannel = new DeviceChannel();
+            deviceChannel.setDeviceId(device.getDeviceId());
+            deviceChannel.setChannelId(mobilePosition.getChannelId());
+            deviceChannel.setLongitude(mobilePosition.getLongitude());
+            deviceChannel.setLatitude(mobilePosition.getLatitude());
+            deviceChannel.setGpsTime(mobilePosition.getTime());
+
+            deviceChannel = deviceChannelService.updateGps(deviceChannel, device);
+
+            mobilePosition.setLongitudeWgs84(deviceChannel.getLongitudeWgs84());
+            mobilePosition.setLatitudeWgs84(deviceChannel.getLatitudeWgs84());
+            mobilePosition.setLongitudeGcj02(deviceChannel.getLongitudeGcj02());
+            mobilePosition.setLatitudeGcj02(deviceChannel.getLatitudeGcj02());
+
+            if (userSetting.getSavePositionHistory()) {
+                storager.insertMobilePosition(mobilePosition);
             }
-            storager.insertMobilePosition(mobilePosition);
+            storager.updateChannelPosition(deviceChannel);
             //回复 200 OK
             responseAck(evt, Response.OK);
         } catch (DocumentException | SipException | InvalidArgumentException | ParseException e) {

@@ -107,13 +107,9 @@ public class ByeRequestProcessor extends SIPRequestProcessorParent implements In
 							cmder.streamByeCmd(sendRtpItem.getDeviceId(), channelId, streamId, null);
 						}
 						if (sendRtpItem.getPlayType().equals(InviteStreamType.PUSH)) {
-							MessageForPushChannel messageForPushChannel = new MessageForPushChannel();
-							messageForPushChannel.setType(0);
-							messageForPushChannel.setGbId(sendRtpItem.getChannelId());
-							messageForPushChannel.setApp(sendRtpItem.getApp());
-							messageForPushChannel.setStream(sendRtpItem.getStreamId());
-							messageForPushChannel.setMediaServerId(sendRtpItem.getMediaServerId());
-							messageForPushChannel.setPlatFormId(sendRtpItem.getPlatformId());
+							MessageForPushChannel messageForPushChannel = MessageForPushChannel.getInstance(0,
+									sendRtpItem.getApp(), sendRtpItem.getStreamId(), sendRtpItem.getChannelId(),
+									sendRtpItem.getPlatformId(), null, null, sendRtpItem.getMediaServerId());
 							redisCatchStorage.sendStreamPushRequestedMsg(messageForPushChannel);
 						}
 					}
@@ -130,7 +126,7 @@ public class ByeRequestProcessor extends SIPRequestProcessorParent implements In
 					SsrcTransaction ssrcTransactionForPlay = streamSession.getSsrcTransaction(device.getDeviceId(), channelId, "play", null);
 					if (ssrcTransactionForPlay != null){
 						SIPDialog dialogForPlay = (SIPDialog) SerializeUtils.deSerialize(ssrcTransactionForPlay.getDialog());
-						if (dialogForPlay.getCallId().equals(callIdHeader.getCallId())){
+						if (dialogForPlay.getCallId().getCallId().equals(callIdHeader.getCallId())){
 							// 释放ssrc
 							MediaServerItem mediaServerItem = mediaServerService.getOne(ssrcTransactionForPlay.getMediaServerId());
 							if (mediaServerItem != null) {

@@ -32,7 +32,7 @@ spring:
     datasource:
         type: com.alibaba.druid.pool.DruidDataSource
         driver-class-name: com.mysql.cj.jdbc.Driver
-        url: jdbc:mysql://127.0.0.1:3306/wvp?useUnicode=true&characterEncoding=UTF8&rewriteBatchedStatements=true&serverTimezone=PRC&useSSL=false
+        url: jdbc:mysql://127.0.0.1:3306/wvp2?useUnicode=true&characterEncoding=UTF8&rewriteBatchedStatements=true&serverTimezone=PRC&useSSL=false&allowMultiQueries=true
         username: root
         password: root123
         druid:
@@ -149,7 +149,7 @@ media:
         enable: true
         # [可选] 在此范围内选择端口用于媒体流传输, 必须提前在zlm上配置该属性，不然自动配置此属性可能不成功
         port-range: 30000,30500 # 端口范围
-        # [可选] 国标级联在此范围内选择端口发送媒体流,
+        # [可选] 国标级联在此范围内选择端口发送媒体流
         send-port-range: 30000,30500 # 端口范围
     # 录像辅助服务， 部署此服务可以实现zlm录像的管理与下载， 0 表示不使用
     record-assist-port: 0
@@ -185,8 +185,6 @@ user-settings:
     record-sip: true
     # 是否将日志存储进数据库
     logInDatebase: true
-    # 第三方匹配，用于从stream钟获取有效信息
-    thirdPartyGBIdReg: "[\\s\\S]*"
 
 # 在线文档： swagger-ui（生产环境建议关闭）
 swagger-ui:

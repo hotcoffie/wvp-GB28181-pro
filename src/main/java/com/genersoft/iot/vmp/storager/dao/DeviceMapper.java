@@ -38,6 +38,8 @@ public interface DeviceMapper {
                 "mobilePositionSubmissionInterval," +
                 "subscribeCycleForAlarm," +
                 "ssrcCheck," +
+                "geoCoordSys," +
+                "treeType," +
                 "online" +
             ") VALUES (" +
                 "#{deviceId}," +
@@ -61,6 +63,8 @@ public interface DeviceMapper {
                 "#{mobilePositionSubmissionInterval}," +
                 "#{subscribeCycleForAlarm}," +
                 "#{ssrcCheck}," +
+                "#{geoCoordSys}," +
+                "#{treeType}," +
                 "#{online}" +
             ")")
     int add(Device device);
@@ -87,6 +91,8 @@ public interface DeviceMapper {
                 "<if test=\"mobilePositionSubmissionInterval != null\">, mobilePositionSubmissionInterval=${mobilePositionSubmissionInterval}</if>" +
                 "<if test=\"subscribeCycleForAlarm != null\">, subscribeCycleForAlarm=${subscribeCycleForAlarm}</if>" +
                 "<if test=\"ssrcCheck != null\">, ssrcCheck=${ssrcCheck}</if>" +
+                "<if test=\"geoCoordSys != null\">, geoCoordSys=#{geoCoordSys}</if>" +
+                "<if test=\"treeType != null\">, treeType=#{treeType}</if>" +
                 "WHERE deviceId='${deviceId}'"+
             " </script>"})
     int update(Device device);

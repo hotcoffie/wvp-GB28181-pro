@@ -257,37 +257,37 @@ public class SIPCommanderFroPlatform implements ISIPCommanderForPlatform {
         catalogXml.append("<DeviceList Num=\"" + channels.size() +"\">\r\n");
         if (channels.size() > 0) {
             for (DeviceChannel channel : channels) {
+                if (parentPlatform.getServerGBId().equals(channel.getParentId())) {
+                    channel.setParentId(parentPlatform.getDeviceGBId());
+                }
                 catalogXml.append("<Item>\r\n");
+                // 行政区划分组只需要这两项就可以
                 catalogXml.append("<DeviceID>" + channel.getChannelId() + "</DeviceID>\r\n");
                 catalogXml.append("<Name>" + channel.getName() + "</Name>\r\n");
-                catalogXml.append("<Parental>" + channel.getParental() + "</Parental>\r\n");
                 if (channel.getParentId() != null) {
+                    // 业务分组加上这一项即可，提高兼容性，
                     catalogXml.append("<ParentID>" + channel.getParentId() + "</ParentID>\r\n");
                 }
-                if (channel.getChannelId().length() == 20) {
-                    if (Integer.parseInt(channel.getChannelId().substring(10, 13)) == 216) { // 虚拟组织增加BusinessGroupID字段
-                        catalogXml.append("<BusinessGroupID>" + channel.getParentId() + "</BusinessGroupID>\r\n");
-                    }
+                if (channel.getChannelId().length() == 20 && Integer.parseInt(channel.getChannelId().substring(10, 13)) == 216) {
+                    // 虚拟组织增加BusinessGroupID字段
+                    catalogXml.append("<BusinessGroupID>" + channel.getParentId() + "</BusinessGroupID>\r\n");
+                }
+                catalogXml.append("<Parental>" + channel.getParental() + "</Parental>\r\n");
+                if (channel.getParental() == 0) {
+                    // 通道项
                     catalogXml.append("<Manufacturer>" + channel.getManufacture() + "</Manufacturer>\r\n");
+                    catalogXml.append("<Secrecy>" + channel.getSecrecy() + "</Secrecy>\r\n");
                     catalogXml.append("<RegisterWay>" + channel.getRegisterWay() + "</RegisterWay>\r\n");
-                    catalogXml.append("<Status>" + (channel.getStatus() == 0?"OFF":"ON") + "</Status>\r\n");
-                    if (channel.getChannelType() != 2) { // 业务分组/虚拟组织/行政区划 不设置以下字段
-                        catalogXml.append("<Secrecy>" + channel.getSecrecy() + "</Secrecy>\r\n");
+                    catalogXml.append("<Status>" + (channel.getStatus() == 0 ? "OFF" : "ON") + "</Status>\r\n");
+
+                    if (channel.getChannelType() != 2) {  // 业务分组/虚拟组织/行政区划 不设置以下属性
                         catalogXml.append("<Model>" + channel.getModel() + "</Model>\r\n");
-                        catalogXml.append("<Owner>" + channel.getOwner() + "</Owner>\r\n");
+                        catalogXml.append("<Owner> " + channel.getOwner()+ "</Owner>\r\n");
                         catalogXml.append("<CivilCode>" + channel.getCivilCode() + "</CivilCode>\r\n");
                         catalogXml.append("<Address>" + channel.getAddress() + "</Address>\r\n");
-                        catalogXml.append("<Longitude>" + channel.getLongitude() + "</Longitude>\r\n");
-                        catalogXml.append("<Latitude>" + channel.getLatitude() + "</Latitude>\r\n");
-                        catalogXml.append("<IPAddress>" + channel.getIpAddress() + "</IPAddress>\r\n");
-                        catalogXml.append("<Port>" + channel.getPort() + "</Port>\r\n");
-                        catalogXml.append("<Info>\r\n");
-                        catalogXml.append("<PTZType>" + channel.getPTZType() + "</PTZType>\r\n");
-                        catalogXml.append("</Info>\r\n");
                     }
+
                 }
-
-
                 catalogXml.append("</Item>\r\n");
             }
         }
@@ -406,7 +406,10 @@ public class SIPCommanderFroPlatform implements ISIPCommanderForPlatform {
         if (parentPlatform == null) {
             return false;
         }
-        logger.info("[发送 移动位置订阅] {}/{}->{},{}", parentPlatform.getServerGBId(), gpsMsgInfo.getId(), gpsMsgInfo.getLng(), gpsMsgInfo.getLat());
+        if (logger.isDebugEnabled()) {
+            logger.debug("[发送 移动位置订阅] {}/{}->{},{}", parentPlatform.getServerGBId(), gpsMsgInfo.getId(), gpsMsgInfo.getLng(), gpsMsgInfo.getLat());
+        }
+
         try {
             String characterSet = parentPlatform.getCharacterSet();
             StringBuffer deviceStatusXml = new StringBuffer(600);
@@ -589,27 +592,35 @@ public class SIPCommanderFroPlatform implements ISIPCommanderForPlatform {
                     channel.setParentId(parentPlatform.getDeviceGBId());
                 }
                 catalogXml.append("<Item>\r\n");
+                // 行政区划分组只需要这两项就可以
                 catalogXml.append("<DeviceID>" + channel.getChannelId() + "</DeviceID>\r\n");
                 catalogXml.append("<Name>" + channel.getName() + "</Name>\r\n");
-                catalogXml.append("<Manufacturer>" + channel.getManufacture() + "</Manufacturer>\r\n");
-                catalogXml.append("<Parental>" + channel.getParental() + "</Parental>\r\n");
                 if (channel.getParentId() != null) {
+                    // 业务分组加上这一项即可，提高兼容性，
                     catalogXml.append("<ParentID>" + channel.getParentId() + "</ParentID>\r\n");
                 }
-                catalogXml.append("<Secrecy>" + channel.getSecrecy() + "</Secrecy>\r\n");
-                catalogXml.append("<RegisterWay>" + channel.getRegisterWay() + "</RegisterWay>\r\n");
-                catalogXml.append("<Status>" + (channel.getStatus() == 0 ? "OFF" : "ON") + "</Status>\r\n");
-                if (channel.getChannelId().length() == 20 && Integer.parseInt(channel.getChannelId().substring(10, 13)) == 216) { // 虚拟组织增加BusinessGroupID字段
+                if (channel.getChannelId().length() == 20 && Integer.parseInt(channel.getChannelId().substring(10, 13)) == 216) {
+                    // 虚拟组织增加BusinessGroupID字段
                     catalogXml.append("<BusinessGroupID>" + channel.getParentId() + "</BusinessGroupID>\r\n");
                 }
-                if (channel.getChannelType() == 2) {  // 业务分组/虚拟组织/行政区划 不设置以下属性
-                    catalogXml.append("<Model>" + channel.getModel() + "</Model>\r\n");
-                    catalogXml.append("<Owner>0</Owner>\r\n");
-                    catalogXml.append("<CivilCode>CivilCode</CivilCode>\r\n");
-                    catalogXml.append("<Address>" + channel.getAddress() + "</Address>\r\n");
-                }
-                if (!"presence".equals(subscribeInfo.getEventType())) {
-                    catalogXml.append("<Event>" + type + "</Event>\r\n");
+                catalogXml.append("<Parental>" + channel.getParental() + "</Parental>\r\n");
+                if (channel.getParental() == 0) {
+                    // 通道项
+                    catalogXml.append("<Manufacturer>" + channel.getManufacture() + "</Manufacturer>\r\n");
+                    catalogXml.append("<Secrecy>" + channel.getSecrecy() + "</Secrecy>\r\n");
+                    catalogXml.append("<RegisterWay>" + channel.getRegisterWay() + "</RegisterWay>\r\n");
+                    catalogXml.append("<Status>" + (channel.getStatus() == 0 ? "OFF" : "ON") + "</Status>\r\n");
+
+                    if (channel.getChannelType() != 2) {  // 业务分组/虚拟组织/行政区划 不设置以下属性
+                        catalogXml.append("<Model>" + channel.getModel() + "</Model>\r\n");
+                        catalogXml.append("<Owner> " + channel.getOwner()+ "</Owner>\r\n");
+                        catalogXml.append("<CivilCode>" + channel.getCivilCode() + "</CivilCode>\r\n");
+                        catalogXml.append("<Address>" + channel.getAddress() + "</Address>\r\n");
+                    }
+                    if (!"presence".equals(subscribeInfo.getEventType())) {
+                        catalogXml.append("<Event>" + type + "</Event>\r\n");
+                    }
+
                 }
                 catalogXml.append("</Item>\r\n");
             }
@@ -746,6 +757,82 @@ public class SIPCommanderFroPlatform implements ISIPCommanderForPlatform {
     }
 
     @Override
+    public boolean sendMediaStatusNotify(ParentPlatform platform, SendRtpItem sendRtpItem) {
+        if (sendRtpItem == null) {
+            return false;
+        }
+        if (platform == null) {
+            return false;
+        }
+
+        byte[] dialogByteArray = sendRtpItem.getDialog();
+        if (dialogByteArray == null) {
+            return false;
+        }
+        try{
+            SIPDialog dialog = (SIPDialog) SerializeUtils.deSerialize(dialogByteArray);
+            SipStack sipStack;
+            if ("TCP".equals(platform.getTransport())) {
+                sipStack = tcpSipProvider.getSipStack();
+            } else {
+                sipStack = udpSipProvider.getSipStack();
+            }
+            SIPDialog sipDialog = ((SipStackImpl) sipStack).putDialog(dialog);
+            if (dialog != sipDialog) {
+                dialog = sipDialog;
+            }
+            if ("TCP".equals(platform.getTransport())) {
+                dialog.setSipProvider(tcpSipProvider);
+            } else {
+                dialog.setSipProvider(udpSipProvider);
+            }
+
+            Field sipStackField = SIPDialog.class.getDeclaredField("sipStack");
+            sipStackField.setAccessible(true);
+            sipStackField.set(dialog, sipStack);
+            Field eventListenersField = SIPDialog.class.getDeclaredField("eventListeners");
+            eventListenersField.setAccessible(true);
+            eventListenersField.set(dialog, new HashSet<>());
+
+            SIPRequest messageRequest = (SIPRequest)dialog.createRequest(Request.MESSAGE);
+            String characterSet = platform.getCharacterSet();
+            StringBuffer mediaStatusXml = new StringBuffer(200);
+            mediaStatusXml.append("<?xml version=\"1.0\" encoding=\"" + characterSet + "\"?>\r\n");
+            mediaStatusXml.append("<Notify>\r\n");
+            mediaStatusXml.append("<CmdType>MediaStatus</CmdType>\r\n");
+            mediaStatusXml.append("<SN>" + (int)((Math.random()*9+1)*100000) + "</SN>\r\n");
+            mediaStatusXml.append("<DeviceID>" + sendRtpItem.getChannelId() + "</DeviceID>\r\n");
+            mediaStatusXml.append("<NotifyType>121</NotifyType>\r\n");
+            mediaStatusXml.append("</Notify>\r\n");
+            ContentTypeHeader contentTypeHeader = sipFactory.createHeaderFactory().createContentTypeHeader("Application", "MANSCDP+xml");
+            messageRequest.setContent(mediaStatusXml.toString(), contentTypeHeader);
+            SipURI sipURI = (SipURI) messageRequest.getRequestURI();
+            sipURI.setHost(platform.getServerIP());
+            sipURI.setPort(platform.getServerPort());
+            ClientTransaction clientTransaction;
+            if ("TCP".equals(platform.getTransport())) {
+                clientTransaction = tcpSipProvider.getNewClientTransaction(messageRequest);
+            }else {
+                clientTransaction = udpSipProvider.getNewClientTransaction(messageRequest);
+            }
+            dialog.sendRequest(clientTransaction);
+        } catch (SipException e) {
+            e.printStackTrace();
+            return false;
+        } catch (ParseException e) {
+            e.printStackTrace();
+            return false;
+        } catch (NoSuchFieldException e) {
+            throw new RuntimeException(e);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
+        }
+        return true;
+
+
+    }
+
+    @Override
     public void streamByeCmd(ParentPlatform platform, String callId) {
         if (platform == null) {
             return;
@@ -761,45 +848,51 @@ public class SIPCommanderFroPlatform implements ISIPCommanderForPlatform {
             byte[] dialogByteArray = sendRtpItem.getDialog();
             if (dialogByteArray != null) {
                 SIPDialog dialog = (SIPDialog) SerializeUtils.deSerialize(dialogByteArray);
-                SipStack sipStack = udpSipProvider.getSipStack();
+                SipStack sipStack;
+                if ("TCP".equals(platform.getTransport())) {
+                    sipStack = tcpSipProvider.getSipStack();
+                } else {
+                    sipStack = udpSipProvider.getSipStack();
+                }
                 SIPDialog sipDialog = ((SipStackImpl) sipStack).putDialog(dialog);
                 if (dialog != sipDialog) {
                     dialog = sipDialog;
-                } else {
-                    try {
-                        dialog.setSipProvider(udpSipProvider);
-                        Field sipStackField = SIPDialog.class.getDeclaredField("sipStack");
-                        sipStackField.setAccessible(true);
-                        sipStackField.set(dialog, sipStack);
-                        Field eventListenersField = SIPDialog.class.getDeclaredField("eventListeners");
-                        eventListenersField.setAccessible(true);
-                        eventListenersField.set(dialog, new HashSet<>());
-
-                        byte[] transactionByteArray = sendRtpItem.getTransaction();
-                        ClientTransaction clientTransaction = (ClientTransaction) SerializeUtils.deSerialize(transactionByteArray);
-                        Request byeRequest = dialog.createRequest(Request.BYE);
-
-                        SipURI byeURI = (SipURI) byeRequest.getRequestURI();
-                        SIPRequest request = (SIPRequest) clientTransaction.getRequest();
-                        byeURI.setHost(request.getRemoteAddress().getHostAddress());
-                        byeURI.setPort(request.getRemotePort());
-                        if ("TCP".equals(platform.getTransport())) {
-                            clientTransaction = tcpSipProvider.getNewClientTransaction(byeRequest);
-                        } else if ("UDP".equals(platform.getTransport())) {
-                            clientTransaction = udpSipProvider.getNewClientTransaction(byeRequest);
-                        }
-                        dialog.sendRequest(clientTransaction);
-                    } catch (SipException e) {
-                        e.printStackTrace();
-                    } catch (ParseException e) {
-                        e.printStackTrace();
-                    } catch (NoSuchFieldException e) {
-                        e.printStackTrace();
-                    } catch (IllegalAccessException e) {
-                        e.printStackTrace();
-                    }
-
                 }
+                try {
+                    if ("TCP".equals(platform.getTransport())) {
+                        dialog.setSipProvider(tcpSipProvider);
+                    } else {
+                        dialog.setSipProvider(udpSipProvider);
+                    }
+                    Field sipStackField = SIPDialog.class.getDeclaredField("sipStack");
+                    sipStackField.setAccessible(true);
+                    sipStackField.set(dialog, sipStack);
+                    Field eventListenersField = SIPDialog.class.getDeclaredField("eventListeners");
+                    eventListenersField.setAccessible(true);
+                    eventListenersField.set(dialog, new HashSet<>());
+
+                    Request byeRequest = dialog.createRequest(Request.BYE);
+
+                    SipURI byeURI = (SipURI) byeRequest.getRequestURI();
+                    byeURI.setHost(platform.getServerIP());
+                    byeURI.setPort(platform.getServerPort());
+                    ClientTransaction clientTransaction;
+                    if ("TCP".equals(platform.getTransport())) {
+                        clientTransaction = tcpSipProvider.getNewClientTransaction(byeRequest);
+                    } else {
+                        clientTransaction = udpSipProvider.getNewClientTransaction(byeRequest);
+                    }
+                    dialog.sendRequest(clientTransaction);
+                } catch (SipException e) {
+                    e.printStackTrace();
+                } catch (ParseException e) {
+                    e.printStackTrace();
+                } catch (NoSuchFieldException e) {
+                    e.printStackTrace();
+                } catch (IllegalAccessException e) {
+                    e.printStackTrace();
+                }
+
             }
         }
     }

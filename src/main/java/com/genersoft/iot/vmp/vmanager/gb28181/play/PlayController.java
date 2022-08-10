@@ -148,6 +148,8 @@ public class PlayController {
 		// 超时处理
 		result.onTimeout(()->{
 			logger.warn(String.format("设备预览/回放停止超时，deviceId/channelId：%s_%s ", deviceId, channelId));
+			redisCatchStorage.stopPlay(streamInfo);
+			storager.stopPlay(streamInfo.getDeviceID(), streamInfo.getChannelId());
 			RequestMessage msg = new RequestMessage();
 			msg.setId(uuid);
 			msg.setKey(key);
@@ -193,7 +195,7 @@ public class PlayController {
 				JSONObject data = jsonObject.getJSONObject("data");
 				if (data != null) {
 				   	result.put("key", data.getString("key"));
-					StreamInfo streamInfoResult = mediaService.getStreamInfoByAppAndStreamWithCheck("convert", streamId, mediaInfo.getId());
+					StreamInfo streamInfoResult = mediaService.getStreamInfoByAppAndStreamWithCheck("convert", streamId, mediaInfo.getId(), false);
 					result.put("data", streamInfoResult);
 				}
 			}else {

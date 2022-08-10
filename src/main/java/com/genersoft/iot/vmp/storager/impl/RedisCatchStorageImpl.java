@@ -9,6 +9,8 @@ import com.genersoft.iot.vmp.conf.UserSetting;
 import com.genersoft.iot.vmp.gb28181.bean.*;
 import com.genersoft.iot.vmp.media.zlm.dto.MediaItem;
 import com.genersoft.iot.vmp.media.zlm.dto.MediaServerItem;
+import com.genersoft.iot.vmp.media.zlm.dto.OnPublishHookParam;
+import com.genersoft.iot.vmp.media.zlm.dto.StreamAuthorityInfo;
 import com.genersoft.iot.vmp.service.bean.GPSMsgInfo;
 import com.genersoft.iot.vmp.service.bean.MessageForPushChannel;
 import com.genersoft.iot.vmp.service.bean.ThirdPartyGB;
@@ -20,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.*;
 
@@ -476,13 +479,18 @@ public class RedisCatchStorageImpl implements IRedisCatchStorage {
     @Override
     public void sendStreamChangeMsg(String type, JSONObject jsonObject) {
         String key = VideoManagerConstants.WVP_MSG_STREAM_CHANGE_PREFIX + type;
-        logger.debug("[redis 流变化事件] {}: {}", key, jsonObject.toString());
+        logger.info("[redis 流变化事件] {}: {}", key, jsonObject.toString());
         redis.convertAndSend(key, jsonObject);
     }
 
     @Override
     public void addStream(MediaServerItem mediaServerItem, String type, String app, String streamId, MediaItem mediaItem) {
+        // 查找是否使用了callID
+        StreamAuthorityInfo streamAuthorityInfo = getStreamAuthorityInfo(app, streamId);
         String key = VideoManagerConstants.WVP_SERVER_STREAM_PREFIX  + userSetting.getServerId() + "_" + type + "_" + app + "_" + streamId + "_" + mediaServerItem.getId();
+        if (streamAuthorityInfo != null) {
+            mediaItem.setCallId(streamAuthorityInfo.getCallId());
+        }
         redis.set(key, mediaItem);
     }
 
@@ -587,16 +595,36 @@ public class RedisCatchStorageImpl implements IRedisCatchStorage {
         String scanKey = VideoManagerConstants.WVP_STREAM_GPS_MSG_PREFIX + userSetting.getServerId() + "_*";
         List<GPSMsgInfo> result = new ArrayList<>();
         List<Object> keys = redis.scan(scanKey);
-        for (int i = 0; i < keys.size(); i++) {
-            String key = (String) keys.get(i);
+        for (Object o : keys) {
+            String key = (String) o;
             GPSMsgInfo gpsMsgInfo = (GPSMsgInfo) redis.get(key);
             if (!gpsMsgInfo.isStored()) { // 只取没有存过得
-                result.add((GPSMsgInfo)redis.get(key));
+                result.add((GPSMsgInfo) redis.get(key));
             }
         }
 
         return result;
     }
+
+    @Override
+    public void updateStreamAuthorityInfo(String app, String stream, StreamAuthorityInfo streamAuthorityInfo) {
+        String key = VideoManagerConstants.MEDIA_STREAM_AUTHORITY + userSetting.getServerId() + "_" + app+ "_" + stream;
+        redis.set(key, streamAuthorityInfo);
+    }
+
+    @Override
+    public void removeStreamAuthorityInfo(String app, String stream) {
+        String key = VideoManagerConstants.MEDIA_STREAM_AUTHORITY + userSetting.getServerId() + "_" + app+ "_" + stream ;
+        redis.del(key);
+    }
+
+    @Override
+    public StreamAuthorityInfo getStreamAuthorityInfo(String app, String stream) {
+        String key = VideoManagerConstants.MEDIA_STREAM_AUTHORITY + userSetting.getServerId() + "_" + app+ "_" + stream ;
+        return (StreamAuthorityInfo) redis.get(key);
+
+    }
+
 
     @Override
     public MediaItem getStreamInfo(String app, String streamId, String mediaServerId) {
@@ -660,26 +688,36 @@ public class RedisCatchStorageImpl implements IRedisCatchStorage {
     @Override
     public void sendMobilePositionMsg(JSONObject jsonObject) {
         String key = VideoManagerConstants.VM_MSG_SUBSCRIBE_MOBILE_POSITION;
-        logger.info("[redis 移动位置订阅通知] {}: {}", key, jsonObject.toString());
+        logger.info("[redis发送通知]移动位置 {}: {}", key, jsonObject.toString());
         redis.convertAndSend(key, jsonObject);
     }
 
     @Override
     public void sendStreamPushRequestedMsg(MessageForPushChannel msg) {
         String key = VideoManagerConstants.VM_MSG_STREAM_PUSH_REQUESTED;
-        logger.info("[redis 推流被请求通知] {}: {}-{}", key, msg.getApp(), msg.getStream());
+        logger.info("[redis发送通知]推流被请求 {}: {}/{}", key, msg.getApp(), msg.getStream());
         redis.convertAndSend(key, (JSONObject)JSON.toJSON(msg));
     }
 
     @Override
     public void sendAlarmMsg(AlarmChannelMessage msg) {
         String key = VideoManagerConstants.VM_MSG_SUBSCRIBE_ALARM;
-        logger.info("[redis 报警通知] {}: {}", key, JSON.toJSON(msg));
+        logger.info("[redis发送通知] 报警{}: {}", key, JSON.toJSON(msg));
         redis.convertAndSend(key, (JSONObject)JSON.toJSON(msg));
     }
 
     @Override
     public boolean deviceIsOnline(String deviceId) {
         return getDevice(deviceId).getOnline() == 1;
+    }
+
+
+    @Override
+    public void sendStreamPushRequestedMsgForStatus() {
+        String key = VideoManagerConstants.VM_MSG_GET_ALL_ONLINE_REQUESTED;
+        logger.info("[redis通知]获取所有推流设备的状态");
+        JSONObject jsonObject = new JSONObject();
+        jsonObject.put(key, key);
+        redis.convertAndSend(key, jsonObject);
     }
 }

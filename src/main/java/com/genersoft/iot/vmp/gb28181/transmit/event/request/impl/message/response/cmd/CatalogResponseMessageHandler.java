@@ -20,6 +20,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -31,6 +33,7 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 @Component
 public class CatalogResponseMessageHandler extends SIPRequestProcessorParent implements InitializingBean, IMessageHandler {
@@ -38,8 +41,12 @@ public class CatalogResponseMessageHandler extends SIPRequestProcessorParent imp
     private Logger logger = LoggerFactory.getLogger(CatalogResponseMessageHandler.class);
     private final String cmdType = "Catalog";
 
+    private boolean taskQueueHandlerRun = false;
+
     @Autowired
     private ResponseMessageHandler responseMessageHandler;
+
+    private ConcurrentLinkedQueue<HandlerCatchData> taskQueue = new ConcurrentLinkedQueue<>();
 
     @Autowired
     private IVideoManagerStorage storager;
@@ -63,6 +70,10 @@ public class CatalogResponseMessageHandler extends SIPRequestProcessorParent imp
     @Autowired
     private IRedisCatchStorage redisCatchStorage;
 
+    @Qualifier("taskExecutor")
+    @Autowired
+    private ThreadPoolTaskExecutor taskExecutor;
+
     @Override
     public void afterPropertiesSet() throws Exception {
         responseMessageHandler.addHandler(cmdType, this);
@@ -70,139 +81,91 @@ public class CatalogResponseMessageHandler extends SIPRequestProcessorParent imp
 
     @Override
     public void handForDevice(RequestEvent evt, Device device, Element element) {
-        String key = DeferredResultHolder.CALLBACK_CMD_CATALOG + device.getDeviceId();
-        Element rootElement = null;
+        taskQueue.offer(new HandlerCatchData(evt, device, element));
+        // 回复200 OK
         try {
-            rootElement = getRootElement(evt, device.getCharset());
-            Element deviceListElement = rootElement.element("DeviceList");
-            Element sumNumElement = rootElement.element("SumNum");
-            Element snElement = rootElement.element("SN");
-            if (snElement == null || sumNumElement == null || deviceListElement == null) {
-                responseAck(evt, Response.BAD_REQUEST, "xml error");
-                return;
-            }
-            int sumNum = Integer.parseInt(sumNumElement.getText());
-
-            if (sumNum == 0) {
-                // 数据已经完整接收
-                storager.cleanChannelsForDevice(device.getDeviceId());
-                catalogDataCatch.setChannelSyncEnd(device.getDeviceId(), null);
-            }else {
-                Iterator<Element> deviceListIterator = deviceListElement.elementIterator();
-                if (deviceListIterator != null) {
-                    List<DeviceChannel> channelList = new ArrayList<>();
-                    // 遍历DeviceList
-                    while (deviceListIterator.hasNext()) {
-                        Element itemDevice = deviceListIterator.next();
-                        Element channelDeviceElement = itemDevice.element("DeviceID");
-                        if (channelDeviceElement == null) {
-                            continue;
+            responseAck(evt, Response.OK);
+        } catch (SipException e) {
+            throw new RuntimeException(e);
+        } catch (InvalidArgumentException e) {
+            throw new RuntimeException(e);
+        } catch (ParseException e) {
+            throw new RuntimeException(e);
+        }
+        if (!taskQueueHandlerRun) {
+            taskQueueHandlerRun = true;
+            taskExecutor.execute(()-> {
+                while (!taskQueue.isEmpty()) {
+                    HandlerCatchData take = taskQueue.poll();
+                    String key = DeferredResultHolder.CALLBACK_CMD_CATALOG + take.getDevice().getDeviceId();
+                    Element rootElement = null;
+                    try {
+                        rootElement = getRootElement(take.getEvt(), take.getDevice().getCharset());
+                        Element deviceListElement = rootElement.element("DeviceList");
+                        Element sumNumElement = rootElement.element("SumNum");
+                        Element snElement = rootElement.element("SN");
+                        if (snElement == null || sumNumElement == null || deviceListElement == null) {
+                            responseAck(take.getEvt(), Response.BAD_REQUEST, "xml error");
+                            return;
                         }
-                        //by brewswang
-//                        if (NumericUtil.isDouble(XmlUtil.getText(itemDevice, "Longitude"))) {//如果包含位置信息，就更新一下位置
-//                            processNotifyMobilePosition(evt, itemDevice);
-//                        }
-                        DeviceChannel deviceChannel = XmlUtil.channelContentHander(itemDevice);
-                        deviceChannel.setDeviceId(device.getDeviceId());
+                        int sumNum = Integer.parseInt(sumNumElement.getText());
 
-                        channelList.add(deviceChannel);
-                    }
-                    int sn = Integer.parseInt(snElement.getText());
-                    catalogDataCatch.put(device.getDeviceId(), sn, sumNum, device, channelList);
-                    logger.info("收到来自设备【{}】的通道: {}个，{}/{}", device.getDeviceId(), channelList.size(), catalogDataCatch.get(device.getDeviceId()) == null ? 0 :catalogDataCatch.get(device.getDeviceId()).size(), sumNum);
-                    if (catalogDataCatch.get(device.getDeviceId()).size() == sumNum) {
-                        // 数据已经完整接收
-                        boolean resetChannelsResult = storager.resetChannels(device.getDeviceId(), catalogDataCatch.get(device.getDeviceId()));
-                        if (!resetChannelsResult) {
-                            String errorMsg = "接收成功，写入失败，共" + sumNum + "条，已接收" + catalogDataCatch.get(device.getDeviceId()).size() + "条";
-                            catalogDataCatch.setChannelSyncEnd(device.getDeviceId(), errorMsg);
+                        if (sumNum == 0) {
+                            logger.info("[收到通道]设备:{}的: 0个", take.getDevice().getDeviceId());
+                            // 数据已经完整接收
+                            storager.cleanChannelsForDevice(take.getDevice().getDeviceId());
+                            catalogDataCatch.setChannelSyncEnd(take.getDevice().getDeviceId(), null);
                         }else {
-                            catalogDataCatch.setChannelSyncEnd(device.getDeviceId(), null);
+                            Iterator<Element> deviceListIterator = deviceListElement.elementIterator();
+                            if (deviceListIterator != null) {
+                                List<DeviceChannel> channelList = new ArrayList<>();
+                                // 遍历DeviceList
+                                while (deviceListIterator.hasNext()) {
+                                    Element itemDevice = deviceListIterator.next();
+                                    Element channelDeviceElement = itemDevice.element("DeviceID");
+                                    if (channelDeviceElement == null) {
+                                        continue;
+                                    }
+                                    DeviceChannel deviceChannel = XmlUtil.channelContentHander(itemDevice, device, null);
+                                    deviceChannel.setDeviceId(take.getDevice().getDeviceId());
+
+                                    channelList.add(deviceChannel);
+                                }
+                                int sn = Integer.parseInt(snElement.getText());
+                                catalogDataCatch.put(take.getDevice().getDeviceId(), sn, sumNum, take.getDevice(), channelList);
+                                logger.info("[收到通道]设备: {} -> {}个，{}/{}", take.getDevice().getDeviceId(), channelList.size(), catalogDataCatch.get(take.getDevice().getDeviceId()) == null ? 0 :catalogDataCatch.get(take.getDevice().getDeviceId()).size(), sumNum);
+                                if (catalogDataCatch.get(take.getDevice().getDeviceId()).size() == sumNum) {
+                                    // 数据已经完整接收
+                                    boolean resetChannelsResult = storager.resetChannels(take.getDevice().getDeviceId(), catalogDataCatch.get(take.getDevice().getDeviceId()));
+                                    if (!resetChannelsResult) {
+                                        String errorMsg = "接收成功，写入失败，共" + sumNum + "条，已接收" + catalogDataCatch.get(take.getDevice().getDeviceId()).size() + "条";
+                                        catalogDataCatch.setChannelSyncEnd(take.getDevice().getDeviceId(), errorMsg);
+                                    }else {
+                                        catalogDataCatch.setChannelSyncEnd(take.getDevice().getDeviceId(), null);
+                                    }
+                                }
+                            }
+
                         }
+                    } catch (DocumentException e) {
+                        e.printStackTrace();
+                    } catch (InvalidArgumentException e) {
+                        e.printStackTrace();
+                    } catch (ParseException e) {
+                        e.printStackTrace();
+                    } catch (SipException e) {
+                        e.printStackTrace();
                     }
                 }
-                // 回复200 OK
-                responseAck(evt, Response.OK);
-            }
-        } catch (DocumentException e) {
-            e.printStackTrace();
-        } catch (InvalidArgumentException e) {
-            e.printStackTrace();
-        } catch (ParseException e) {
-            e.printStackTrace();
-        } catch (SipException e) {
-            e.printStackTrace();
+                taskQueueHandlerRun = false;
+            });
+
         }
     }
 
     @Override
     public void handForPlatform(RequestEvent evt, ParentPlatform parentPlatform, Element rootElement) {
 
-    }
-
-    /**
-     * 处理设备位置的更新
-     *
-     * @param evt, itemDevice
-     */
-    private void processNotifyMobilePosition(RequestEvent evt, Element itemDevice) {
-        try {
-            // 回复 200 OK
-            Element rootElement = getRootElement(evt);
-            MobilePosition mobilePosition = new MobilePosition();
-            Element deviceIdElement = rootElement.element("DeviceID");
-            String deviceId = deviceIdElement.getTextTrim().toString();
-            Device device = redisCatchStorage.getDevice(deviceId);
-            if (device != null) {
-                if (!StringUtils.isEmpty(device.getName())) {
-                    mobilePosition.setDeviceName(device.getName());
-                }
-            }
-            mobilePosition.setDeviceId(XmlUtil.getText(rootElement, "DeviceID"));
-
-            String time = XmlUtil.getText(itemDevice, "Time");
-            if(time==null){
-                time =  XmlUtil.getText(itemDevice, "EndTime");
-            }
-            mobilePosition.setTime(time);
-            String longitude = XmlUtil.getText(itemDevice, "Longitude");
-            if(longitude!=null) {
-                mobilePosition.setLongitude(Double.parseDouble(longitude));
-            }
-            String latitude = XmlUtil.getText(itemDevice, "Latitude");
-            if(latitude!=null) {
-                mobilePosition.setLatitude(Double.parseDouble(latitude));
-            }
-            if (NumericUtil.isDouble(XmlUtil.getText(itemDevice, "Speed"))) {
-                mobilePosition.setSpeed(Double.parseDouble(XmlUtil.getText(itemDevice, "Speed")));
-            } else {
-                mobilePosition.setSpeed(0.0);
-            }
-            if (NumericUtil.isDouble(XmlUtil.getText(itemDevice, "Direction"))) {
-                mobilePosition.setDirection(Double.parseDouble(XmlUtil.getText(itemDevice, "Direction")));
-            } else {
-                mobilePosition.setDirection(0.0);
-            }
-            if (NumericUtil.isDouble(XmlUtil.getText(itemDevice, "Altitude"))) {
-                mobilePosition.setAltitude(Double.parseDouble(XmlUtil.getText(itemDevice, "Altitude")));
-            } else {
-                mobilePosition.setAltitude(0.0);
-            }
-            mobilePosition.setReportSource("Mobile Position");
-            // 默认来源坐标系为WGS-84处理
-            Double[] gcj02Point = Coordtransform.WGS84ToGCJ02(mobilePosition.getLongitude(), mobilePosition.getLatitude());
-            logger.info("GCJ02坐标：" + gcj02Point[0] + ", " + gcj02Point[1]);
-            mobilePosition.setGeodeticSystem("GCJ-02");
-            mobilePosition.setCnLng(gcj02Point[0] + "");
-            mobilePosition.setCnLat(gcj02Point[1] + "");
-            if (!userSetting.getSavePositionHistory()) {
-                storager.clearMobilePositionsByDeviceId(deviceId);
-            }
-            storager.insertMobilePosition(mobilePosition);
-            responseAck(evt, Response.OK);
-        } catch (DocumentException | SipException | InvalidArgumentException | ParseException e) {
-            e.printStackTrace();
-        }
     }
 
     public SyncStatus getChannelSyncProgress(String deviceId) {

@@ -1,7 +1,9 @@
 package com.genersoft.iot.vmp.media.zlm.dto;
 
 import com.genersoft.iot.vmp.gb28181.bean.GbStream;
+import com.genersoft.iot.vmp.utils.DateUtil;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.util.unit.DataUnit;
 
 import java.util.List;
 
@@ -81,6 +83,38 @@ public class StreamPushItem extends GbStream implements Comparable<StreamPushIte
      */
     private String mediaServerId;
 
+    /**
+     * 使用的服务ID
+     */
+    private String serverId;
+
+    /**
+     * 推流时间
+     */
+    private String pushTime;
+
+    /**
+     * 更新时间
+     */
+    private String updateTime;
+
+    /**
+     * 创建时间
+     */
+    private String createTime;
+
+    /**
+     * 是否正在推流
+     */
+    private boolean pushIng;
+
+    /**
+     * 是否自己平台的推流
+     */
+    private boolean self;
+
+
+
     public String getVhost() {
         return vhost;
     }
@@ -92,7 +126,8 @@ public class StreamPushItem extends GbStream implements Comparable<StreamPushIte
 
     @Override
     public int compareTo(@NotNull StreamPushItem streamPushItem) {
-        return Long.valueOf(super.createStamp - streamPushItem.getCreateStamp().intValue()).intValue();
+        return Long.valueOf(DateUtil.yyyy_MM_dd_HH_mm_ssToTimestamp(super.createTime)
+                - DateUtil.yyyy_MM_dd_HH_mm_ssToTimestamp(streamPushItem.getCreateTime())).intValue();
     }
 
     public static class MediaSchema {
@@ -218,6 +253,57 @@ public class StreamPushItem extends GbStream implements Comparable<StreamPushIte
     @Override
     public void setMediaServerId(String mediaServerId) {
         this.mediaServerId = mediaServerId;
+    }
+
+    public String getServerId() {
+        return serverId;
+    }
+
+    public void setServerId(String serverId) {
+        this.serverId = serverId;
+    }
+
+
+    public String getPushTime() {
+        return pushTime;
+    }
+
+    public void setPushTime(String pushTime) {
+        this.pushTime = pushTime;
+    }
+
+    public String getUpdateTime() {
+        return updateTime;
+    }
+
+    public void setUpdateTime(String updateTime) {
+        this.updateTime = updateTime;
+    }
+
+    @Override
+    public String getCreateTime() {
+        return createTime;
+    }
+
+    @Override
+    public void setCreateTime(String createTime) {
+        this.createTime = createTime;
+    }
+
+    public boolean isPushIng() {
+        return pushIng;
+    }
+
+    public void setPushIng(boolean pushIng) {
+        this.pushIng = pushIng;
+    }
+
+    public boolean isSelf() {
+        return self;
+    }
+
+    public void setSelf(boolean self) {
+        this.self = self;
     }
 }
 

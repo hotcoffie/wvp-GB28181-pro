@@ -21,6 +21,19 @@ class DeviceService{
       if (typeof (errorCallback) == "function") errorCallback(error)
     });
   }
+
+  getDevice(deviceId, callback, errorCallback){
+    this.$axios({
+      method: 'get',
+      url:`/api/device/query/devices/${deviceId}`,
+    }).then((res) => {
+      if (typeof (callback) == "function") callback(res.data)
+    }).catch((error) => {
+      console.log(error);
+      if (typeof (errorCallback) == "function") errorCallback(error)
+    });
+  }
+
   getAllDeviceList(callback,endCallback, errorCallback) {
     let currentPage = 1;
     let count = 100;
@@ -115,6 +128,49 @@ class DeviceService{
         query: "",
         online: "",
         channelType: isCatalog
+      }
+    }).then((res) =>{
+      if (typeof (callback) == "function") callback(res.data)
+    }).catch(errorCallback);
+  }
+
+  getTree(deviceId, id, param3, param4) {
+
+  }
+
+  getTree(deviceId, parentId, onlyCatalog, callback, endCallback, errorCallback) {
+    let currentPage = 1;
+    let count = 100;
+    let catalogList = []
+    this.getTreeIteration(deviceId, parentId, onlyCatalog, catalogList, currentPage, count, callback, endCallback, errorCallback)
+  }
+
+  getTreeIteration(deviceId, parentId, onlyCatalog, catalogList, currentPage, count, callback, endCallback, errorCallback) {
+    this.getTreeInfo(deviceId, parentId, onlyCatalog, currentPage, count, (data) => {
+      if (data.list) {
+        if (typeof (callback) == "function") callback(data.list)
+        catalogList = catalogList.concat(data.list);
+        if (catalogList.length < data.total) {
+          currentPage ++
+          this.getTreeIteration(deviceId, parentId, onlyCatalog, catalogList, currentPage, count, callback, endCallback, errorCallback)
+        }else {
+          if (typeof (endCallback) == "function") endCallback(catalogList)
+        }
+      }
+    }, errorCallback)
+  }
+  getTreeInfo(deviceId, parentId, onlyCatalog, currentPage, count, callback, errorCallback) {
+    if (onlyCatalog == null || typeof onlyCatalog === "undefined") {
+      onlyCatalog = false;
+    }
+    this.$axios({
+      method: 'get',
+      url: `/api/device/query/tree/${deviceId}`,
+      params:{
+        page: currentPage,
+        count: count,
+        parentId: parentId,
+        onlyCatalog: onlyCatalog
       }
     }).then((res) =>{
       if (typeof (callback) == "function") callback(res.data)

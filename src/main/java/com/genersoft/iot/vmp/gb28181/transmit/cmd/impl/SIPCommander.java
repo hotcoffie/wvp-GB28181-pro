@@ -10,6 +10,9 @@ import com.genersoft.iot.vmp.gb28181.event.SipSubscribe;
 import com.genersoft.iot.vmp.gb28181.session.VideoStreamSessionManager;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.ISIPCommander;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.SIPRequestHeaderProvider;
+import com.genersoft.iot.vmp.media.zlm.dto.HookSubscribeFactory;
+import com.genersoft.iot.vmp.media.zlm.dto.HookSubscribeForStreamChange;
+import com.genersoft.iot.vmp.media.zlm.dto.HookType;
 import com.genersoft.iot.vmp.utils.DateUtil;
 import com.genersoft.iot.vmp.gb28181.utils.NumericUtil;
 import com.genersoft.iot.vmp.media.zlm.ZLMHttpHookSubscribe;
@@ -32,7 +35,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import javax.sip.*;
+import javax.sip.address.Address;
 import javax.sip.address.SipURI;
+import javax.sip.address.URI;
 import javax.sip.header.*;
 import javax.sip.message.Request;
 import java.lang.reflect.Field;
@@ -346,25 +351,19 @@ public class SIPCommander implements ISIPCommander {
 	@Override
 	public void playStreamCmd(MediaServerItem mediaServerItem, SSRCInfo ssrcInfo, Device device, String channelId,
 							  ZLMHttpHookSubscribe.Event event, SipSubscribe.Event okEvent, SipSubscribe.Event errorEvent) {
-		String streamId = ssrcInfo.getStream();
+		String stream = ssrcInfo.getStream();
 		try {
 			if (device == null) {
 				return;
 			}
 			String streamMode = device.getStreamMode().toUpperCase();
 
-			logger.info("{} 分配的ZLM为: {} [{}:{}]", streamId, mediaServerItem.getId(), mediaServerItem.getIp(), ssrcInfo.getPort());
-			// 添加订阅
-			JSONObject subscribeKey = new JSONObject();
-			subscribeKey.put("app", "rtp");
-			subscribeKey.put("stream", streamId);
-			subscribeKey.put("regist", true);
-			subscribeKey.put("schema", "rtmp");
-			subscribeKey.put("mediaServerId", mediaServerItem.getId());
-			subscribe.addSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey,
-					(MediaServerItem mediaServerItemInUse, JSONObject json)->{
+			logger.info("{} 分配的ZLM为: {} [{}:{}]", stream, mediaServerItem.getId(), mediaServerItem.getIp(), ssrcInfo.getPort());
+			HookSubscribeForStreamChange hookSubscribe = HookSubscribeFactory.on_stream_changed("rtp", stream, true, "rtmp", mediaServerItem.getId());
+			subscribe.addSubscribe(hookSubscribe, (MediaServerItem mediaServerItemInUse, JSONObject json)->{
 				if (event != null) {
 					event.response(mediaServerItemInUse, json);
+					subscribe.removeSubscribe(hookSubscribe);
 				}
 			});
 			//
@@ -438,7 +437,7 @@ public class SIPCommander implements ISIPCommander {
 				errorEvent.response(e);
 			}), e ->{
 				// 这里为例避免一个通道的点播只有一个callID这个参数使用一个固定值
-				streamSession.put(device.getDeviceId(), channelId ,"play", streamId, ssrcInfo.getSsrc(), mediaServerItem.getId(), ((ResponseEvent)e.event).getClientTransaction(), VideoStreamSessionManager.SessionType.play);
+				streamSession.put(device.getDeviceId(), channelId ,"play", stream, ssrcInfo.getSsrc(), mediaServerItem.getId(), ((ResponseEvent)e.event).getClientTransaction(), VideoStreamSessionManager.SessionType.play);
 				streamSession.put(device.getDeviceId(), channelId ,"play", e.dialog);
 				okEvent.response(e);
 			});
@@ -528,21 +527,14 @@ public class SIPCommander implements ISIPCommander {
 
 			CallIdHeader callIdHeader = device.getTransport().equals("TCP") ? tcpSipProvider.getNewCallId()
 					: udpSipProvider.getNewCallId();
-
+			HookSubscribeForStreamChange hookSubscribe = HookSubscribeFactory.on_stream_changed("rtp", ssrcInfo.getStream(), true, "rtmp", mediaServerItem.getId());
 			// 添加订阅
-			JSONObject subscribeKey = new JSONObject();
-			subscribeKey.put("app", "rtp");
-			subscribeKey.put("stream", ssrcInfo.getStream());
-			subscribeKey.put("regist", true);
-			subscribeKey.put("schema", "rtmp");
-			subscribeKey.put("mediaServerId", mediaServerItem.getId());
-			logger.debug("录像回放添加订阅，订阅内容：" + subscribeKey);
-			subscribe.addSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey,
-					(MediaServerItem mediaServerItemInUse, JSONObject json)->{
+			subscribe.addSubscribe(hookSubscribe, (MediaServerItem mediaServerItemInUse, JSONObject json)->{
 						if (hookEvent != null) {
 							InviteStreamInfo inviteStreamInfo = new InviteStreamInfo(mediaServerItemInUse, json, callIdHeader.getCallId(), "rtp", ssrcInfo.getStream());
 							hookEvent.call(inviteStreamInfo);
 						}
+						subscribe.removeSubscribe(hookSubscribe);
 					});
 	        Request request = headerProvider.createPlaybackInviteRequest(device, channelId, content.toString(), null, "fromplybck" + tm, null, callIdHeader, ssrcInfo.getSsrc());
 
@@ -641,21 +633,15 @@ public class SIPCommander implements ISIPCommander {
 			CallIdHeader callIdHeader = device.getTransport().equals("TCP") ? tcpSipProvider.getNewCallId()
 					: udpSipProvider.getNewCallId();
 
+			HookSubscribeForStreamChange hookSubscribe = HookSubscribeFactory.on_stream_changed("rtp", ssrcInfo.getStream(), true, null, mediaServerItem.getId());
 			// 添加订阅
-			JSONObject subscribeKey = new JSONObject();
-			subscribeKey.put("app", "rtp");
-			subscribeKey.put("stream", ssrcInfo.getStream());
-			subscribeKey.put("regist", true);
-			subscribeKey.put("mediaServerId", mediaServerItem.getId());
-			logger.debug("录像回放添加订阅，订阅内容：" + subscribeKey.toString());
-			subscribe.addSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey,
-					(MediaServerItem mediaServerItemInUse, JSONObject json)->{
+			subscribe.addSubscribe(hookSubscribe, (MediaServerItem mediaServerItemInUse, JSONObject json)->{
 						hookEvent.call(new InviteStreamInfo(mediaServerItem, json, callIdHeader.getCallId(), "rtp", ssrcInfo.getStream()));
-						subscribe.removeSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey);
-						subscribeKey.put("regist", false);
-						subscribeKey.put("schema", "rtmp");
+						subscribe.removeSubscribe(hookSubscribe);
+						hookSubscribe.getContent().put("regist", false);
+						hookSubscribe.getContent().put("schema", "rtmp");
 						// 添加流注销的订阅，注销了后向设备发送bye
-						subscribe.addSubscribe(ZLMHttpHookSubscribe.HookType.on_stream_changed, subscribeKey,
+						subscribe.addSubscribe(hookSubscribe,
 								(MediaServerItem mediaServerItemForEnd, JSONObject jsonForEnd)->{
 									ClientTransaction transaction = streamSession.getTransaction(device.getDeviceId(), channelId, ssrcInfo.getStream(), callIdHeader.getCallId());
 									if (transaction != null) {
@@ -715,8 +701,7 @@ public class SIPCommander implements ISIPCommander {
 				}
 				dialog = streamSession.getDialogByStream(ssrcTransaction.getDeviceId(), ssrcTransaction.getChannelId(), ssrcTransaction.getStream());
 			}
-			MediaServerItem mediaServerItem = mediaServerService.getOne(ssrcTransaction.getMediaServerId());
-			mediaServerService.releaseSsrc(mediaServerItem.getId(), ssrcTransaction.getSsrc());
+			mediaServerService.releaseSsrc(ssrcTransaction.getMediaServerId(), ssrcTransaction.getSsrc());
 			mediaServerService.closeRTPServer(ssrcTransaction.getDeviceId(), ssrcTransaction.getChannelId(), ssrcTransaction.getStream());
 			streamSession.remove(ssrcTransaction.getDeviceId(), ssrcTransaction.getChannelId(), ssrcTransaction.getStream());
 
@@ -1487,12 +1472,20 @@ public class SIPCommander implements ISIPCommander {
 
 			Request request;
 			if (dialog != null) {
-				logger.info("发送移动位置订阅消息时 dialog的状态为： {}", dialog.getState());
+				SipURI requestURI = sipFactory.createAddressFactory().createSipURI(device.getDeviceId(), device.getHostAddress());
 				request = dialog.createRequest(Request.SUBSCRIBE);
+				ExpiresHeader expiresHeader = sipFactory.createHeaderFactory().createExpiresHeader(device.getSubscribeCycleForCatalog());
+				request.setExpires(expiresHeader);
+
+				request.setRequestURI(requestURI);
+
 				ContentTypeHeader contentTypeHeader = sipFactory.createHeaderFactory().createContentTypeHeader("Application", "MANSCDP+xml");
 				request.setContent(subscribePostitionXml.toString(), contentTypeHeader);
-				ExpiresHeader expireHeader = sipFactory.createHeaderFactory().createExpiresHeader(device.getSubscribeCycleForMobilePosition());
-				request.addHeader(expireHeader);
+
+				CSeqHeader cSeqHeader = (CSeqHeader)request.getHeader(CSeqHeader.NAME);
+				cSeqHeader.setSeqNumber(redisCatchStorage.getCSEQ(Request.SUBSCRIBE));
+				request.removeHeader(CSeqHeader.NAME);
+				request.addHeader(cSeqHeader);
 			}else {
 				String tm = Long.toString(System.currentTimeMillis());
 				CallIdHeader callIdHeader = device.getTransport().equals("TCP") ? tcpSipProvider.getNewCallId()
@@ -1583,12 +1576,21 @@ public class SIPCommander implements ISIPCommander {
 
 			Request request;
 			if (dialog != null) {
-				logger.info("发送目录订阅消息时 dialog的状态为： {}", dialog.getState());
+				SipURI requestURI = sipFactory.createAddressFactory().createSipURI(device.getDeviceId(), device.getHostAddress());
 				request = dialog.createRequest(Request.SUBSCRIBE);
+				ExpiresHeader expiresHeader = sipFactory.createHeaderFactory().createExpiresHeader(device.getSubscribeCycleForCatalog());
+				request.setExpires(expiresHeader);
+
+				request.setRequestURI(requestURI);
+
 				ContentTypeHeader contentTypeHeader = sipFactory.createHeaderFactory().createContentTypeHeader("Application", "MANSCDP+xml");
 				request.setContent(cmdXml.toString(), contentTypeHeader);
-				ExpiresHeader expireHeader = sipFactory.createHeaderFactory().createExpiresHeader(device.getSubscribeCycleForMobilePosition());
-				request.addHeader(expireHeader);
+
+				CSeqHeader cSeqHeader = (CSeqHeader)request.getHeader(CSeqHeader.NAME);
+				cSeqHeader.setSeqNumber(redisCatchStorage.getCSEQ(Request.SUBSCRIBE));
+				request.removeHeader(CSeqHeader.NAME);
+				request.addHeader(cSeqHeader);
+
 			}else {
 				String tm = Long.toString(System.currentTimeMillis());
 
@@ -1806,6 +1808,43 @@ public class SIPCommander implements ISIPCommander {
 
 			clientTransaction.sendRequest();
 
+		} catch (SipException | ParseException | InvalidArgumentException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	@Override
+	public void playbackControlCmd(Device device, StreamInfo streamInfo, String content,SipSubscribe.Event errorEvent, SipSubscribe.Event okEvent) {
+		try {
+			Request request = headerProvider.createInfoRequest(device, streamInfo, content);
+			if (request == null) {
+				return;
+			}
+			logger.info(request.toString());
+			ClientTransaction clientTransaction = null;
+			if ("TCP".equals(device.getTransport())) {
+				clientTransaction = tcpSipProvider.getNewClientTransaction(request);
+			} else if ("UDP".equals(device.getTransport())) {
+				clientTransaction = udpSipProvider.getNewClientTransaction(request);
+			}
+			CallIdHeader callIdHeader = (CallIdHeader)request.getHeader(CallIdHeader.NAME);
+			if(errorEvent != null) {
+				sipSubscribe.addErrorSubscribe(callIdHeader.getCallId(), (eventResult -> {
+					errorEvent.response(eventResult);
+					sipSubscribe.removeErrorSubscribe(eventResult.callId);
+					sipSubscribe.removeOkSubscribe(eventResult.callId);
+				}));
+			}
+			
+			if(okEvent != null) {
+				sipSubscribe.addOkSubscribe(callIdHeader.getCallId(), eventResult -> {
+					okEvent.response(eventResult);
+					sipSubscribe.removeOkSubscribe(eventResult.callId);
+					sipSubscribe.removeErrorSubscribe(eventResult.callId);
+				});
+			}
+			clientTransaction.sendRequest();
+			
 		} catch (SipException | ParseException | InvalidArgumentException e) {
 			e.printStackTrace();
 		}

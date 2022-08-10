@@ -12,25 +12,33 @@ import com.genersoft.iot.vmp.gb28181.task.impl.MobilePositionSubscribeTask;
 import com.genersoft.iot.vmp.gb28181.transmit.callback.DeferredResultHolder;
 import com.genersoft.iot.vmp.gb28181.transmit.callback.RequestMessage;
 import com.genersoft.iot.vmp.gb28181.transmit.cmd.impl.SIPCommander;
+import com.genersoft.iot.vmp.service.IDeviceChannelService;
 import com.genersoft.iot.vmp.service.IDeviceService;
 import com.genersoft.iot.vmp.storager.IRedisCatchStorage;
 import com.genersoft.iot.vmp.storager.IVideoManagerStorage;
+import com.genersoft.iot.vmp.vmanager.bean.BaseTree;
 import com.genersoft.iot.vmp.vmanager.bean.WVPResult;
 import com.github.pagehelper.PageInfo;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiImplicitParams;
 import io.swagger.annotations.ApiOperation;
+import org.apache.commons.compress.utils.IOUtils;
+import org.apache.http.HttpResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.context.request.async.DeferredResult;
 
+import javax.servlet.http.HttpServletResponse;
 import javax.sip.DialogState;
+import java.io.*;
+import java.nio.file.Files;
 import java.util.*;
 
 @Api(tags = "国标设备查询", value = "国标设备查询")
@@ -44,6 +52,9 @@ public class DeviceQuery {
 	
 	@Autowired
 	private IVideoManagerStorage storager;
+
+	@Autowired
+	private IDeviceChannelService deviceChannelService;
 
 	@Autowired
 	private IRedisCatchStorage redisCatchStorage;
@@ -200,6 +211,11 @@ public class DeviceQuery {
 			Set<String> allKeys = dynamicTask.getAllKeys();
 			for (String key : allKeys) {
 				if (key.startsWith(deviceId)) {
+					Runnable runnable = dynamicTask.get(key);
+					if (runnable instanceof ISubscribeTask) {
+						ISubscribeTask subscribeTask = (ISubscribeTask) runnable;
+						subscribeTask.stop();
+					}
 					dynamicTask.stop(key);
 				}
 			}
@@ -268,7 +284,7 @@ public class DeviceQuery {
 	})
 	@PostMapping("/channel/update/{deviceId}")
 	public ResponseEntity<PageInfo> updateChannel(@PathVariable String deviceId,DeviceChannel channel){
-		storager.updateChannel(deviceId, channel);
+		deviceChannelService.updateChannel(deviceId, channel);
 		return new ResponseEntity<>(null,HttpStatus.OK);
 	}
 
@@ -306,12 +322,7 @@ public class DeviceQuery {
 	public ResponseEntity<WVPResult<String>> updateDevice(Device device){
 
 		if (device != null && device.getDeviceId() != null) {
-
-
-			// TODO 报警订阅相关的信息
-
 			deviceService.updateDevice(device);
-//			cmder.deviceInfoQuery(device);
 		}
 		WVPResult<String> result = new WVPResult<>();
 		result.setCode(0);
@@ -336,6 +347,11 @@ public class DeviceQuery {
 		Device device = storager.queryVideoDevice(deviceId);
 		String uuid = UUID.randomUUID().toString();
 		String key = DeferredResultHolder.CALLBACK_CMD_DEVICESTATUS + deviceId;
+		DeferredResult<ResponseEntity<String>> result = new DeferredResult<ResponseEntity<String>>(2*1000L);
+		if(device == null) {
+			result.setResult(new ResponseEntity(String.format("设备%s不存在", deviceId),HttpStatus.OK));
+			return result;
+		}
 		cmder.deviceStatusQuery(device, event -> {
 			RequestMessage msg = new RequestMessage();
 			msg.setId(uuid);
@@ -343,7 +359,6 @@ public class DeviceQuery {
 			msg.setData(String.format("获取设备状态失败，错误码： %s, %s", event.statusCode, event.msg));
 			resultHolder.invokeResult(msg);
 		});
-        DeferredResult<ResponseEntity<String>> result = new DeferredResult<ResponseEntity<String>>(2*1000L);
 		result.onTimeout(()->{
 			logger.warn(String.format("获取设备状态超时"));
 			// 释放rtpserver
@@ -455,5 +470,113 @@ public class DeviceQuery {
 		wvpResult.setCode(0);
 		wvpResult.setData(dialogStateMap);
 		return wvpResult;
+	}
+
+	@GetMapping("/snap/{deviceId}/{channelId}")
+	@ApiOperation(value = "请求截图", notes = "请求截图")
+	public void getSnap(HttpServletResponse resp, @PathVariable String deviceId, @PathVariable String channelId) {
+
+		try {
+			final InputStream in = Files.newInputStream(new File("snap" + File.separator + deviceId + "_" + channelId + ".jpg").toPath());
+			resp.setContentType(MediaType.IMAGE_PNG_VALUE);
+			IOUtils.copy(in, resp.getOutputStream());
+		} catch (IOException e) {
+			resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+		}
+	}
+
+	/**
+	 * 查询国标树
+	 * @param deviceId 设备ID
+	 * @param parentId 父ID
+	 * @param page 当前页
+	 * @param count 每页条数
+	 * @return 国标设备
+	 */
+	@ApiOperation("查询国标树")
+	@ApiImplicitParams({
+			@ApiImplicitParam(name = "deviceId", value = "设备ID", required = true, dataTypeClass = String.class),
+			@ApiImplicitParam(name = "parentId", value = "父ID", required = false, dataTypeClass = String.class),
+			@ApiImplicitParam(name = "onlyCatalog", value = "只获取目录", required = false, dataTypeClass = Boolean.class),
+			@ApiImplicitParam(name="page", value = "当前页", required = true, dataTypeClass = Integer.class),
+			@ApiImplicitParam(name="count", value = "每页条数", required = true, dataTypeClass = Integer.class),
+	})
+	@GetMapping("/tree/{deviceId}")
+	public ResponseEntity<PageInfo> getTree(@PathVariable String deviceId, @RequestParam(required = false) String parentId, @RequestParam(required = false) Boolean onlyCatalog, int page, int count){
+
+
+		if (page <= 0) {
+			page = 1;
+		}
+		if (onlyCatalog == null) {
+			onlyCatalog = false;
+		}
+
+		List<BaseTree<DeviceChannel>> treeData = deviceService.queryVideoDeviceTree(deviceId, parentId, onlyCatalog);
+		if (treeData == null || (page - 1) * count > treeData.size()) {
+			PageInfo<BaseTree<DeviceChannel>> pageInfo = new PageInfo<>();
+			pageInfo.setPageNum(page);
+			pageInfo.setTotal(treeData == null? 0 : treeData.size());
+			pageInfo.setSize(0);
+			pageInfo.setList(new ArrayList<>());
+			return new ResponseEntity<>(pageInfo,HttpStatus.OK);
+		}
+
+		int toIndex = Math.min(page * count, treeData.size());
+		// 处理分页
+		List<BaseTree<DeviceChannel>> trees = treeData.subList((page - 1) * count, toIndex);
+		PageInfo<BaseTree<DeviceChannel>> pageInfo = new PageInfo<>();
+		pageInfo.setPageNum(page);
+		pageInfo.setTotal(treeData.size());
+		pageInfo.setSize(trees.size());
+		pageInfo.setList(trees);
+
+		return new ResponseEntity<>(pageInfo,HttpStatus.OK);
+	}
+
+
+	/**
+	 * 查询国标树下的通道
+	 * @param deviceId 设备ID
+	 * @param parentId 父ID
+	 * @param page 当前页
+	 * @param count 每页条数
+	 * @return 国标设备
+	 */
+	@ApiOperation("查询国标树下的通道")
+	@ApiImplicitParams({
+			@ApiImplicitParam(name = "deviceId", value = "设备ID", required = true, dataTypeClass = String.class),
+			@ApiImplicitParam(name = "parentId", value = "父ID", required = false, dataTypeClass = String.class),
+			@ApiImplicitParam(name="page", value = "当前页", required = true, dataTypeClass = Integer.class),
+			@ApiImplicitParam(name="count", value = "每页条数", required = true, dataTypeClass = Integer.class),
+	})
+	@GetMapping("/tree/channel/{deviceId}")
+	public ResponseEntity<PageInfo> getChannelInTreeNode(@PathVariable String deviceId, @RequestParam(required = false) String parentId, int page, int count){
+
+
+		if (page <= 0) {
+			page = 1;
+		}
+
+		List<DeviceChannel> treeData = deviceService.queryVideoDeviceInTreeNode(deviceId, parentId);
+		if (treeData == null || (page - 1) * count > treeData.size()) {
+			PageInfo<BaseTree<DeviceChannel>> pageInfo = new PageInfo<>();
+			pageInfo.setPageNum(page);
+			pageInfo.setTotal(treeData == null? 0 : treeData.size());
+			pageInfo.setSize(0);
+			pageInfo.setList(new ArrayList<>());
+			return new ResponseEntity<>(pageInfo,HttpStatus.OK);
+		}
+
+		int toIndex = Math.min(page * count, treeData.size());
+		// 处理分页
+		List<DeviceChannel> trees = treeData.subList((page - 1) * count, toIndex);
+		PageInfo<DeviceChannel> pageInfo = new PageInfo<>();
+		pageInfo.setPageNum(page);
+		pageInfo.setTotal(treeData.size());
+		pageInfo.setSize(trees.size());
+		pageInfo.setList(trees);
+
+		return new ResponseEntity<>(pageInfo,HttpStatus.OK);
 	}
 }
