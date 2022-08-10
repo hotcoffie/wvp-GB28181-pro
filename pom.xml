@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project 
+<project
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
 	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 	<modelVersion>4.0.0</modelVersion>
@@ -9,11 +9,11 @@
 		<version>2.3.5.RELEASE</version>
 	</parent>
 
-	<groupId>com.genersoft</groupId>
-	<artifactId>wvp-pro</artifactId>
+	<groupId>shop.liaozalie</groupId>
+	<artifactId>zjt</artifactId>
 	<version>2.3.1</version>
-	<name>web video platform</name>
-	<description>国标28181视频平台</description>
+	<name>智家通</name>
+	<description>智家通视频综合管理云平台</description>
 
 	<repositories>
 		<repository>
@@ -245,7 +245,7 @@
 
 
 	<build>
-		<finalName>${project.artifactId}-${project.version}-${maven.build.timestamp}</finalName>
+		<finalName>zjt</finalName>
 		<plugins>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>

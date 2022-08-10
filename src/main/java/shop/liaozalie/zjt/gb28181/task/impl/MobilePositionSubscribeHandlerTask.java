@@ -1,0 +1,94 @@
+package shop.liaozalie.zjt.gb28181.task.impl;
+
+import shop.liaozalie.zjt.conf.DynamicTask;
+import shop.liaozalie.zjt.gb28181.bean.*;
+import shop.liaozalie.zjt.gb28181.bean.DeviceChannel;
+import shop.liaozalie.zjt.gb28181.bean.ParentPlatform;
+import shop.liaozalie.zjt.gb28181.bean.SubscribeHolder;
+import shop.liaozalie.zjt.gb28181.bean.SubscribeInfo;
+import shop.liaozalie.zjt.gb28181.task.ISubscribeTask;
+import shop.liaozalie.zjt.gb28181.transmit.cmd.ISIPCommanderForPlatform;
+import shop.liaozalie.zjt.service.bean.GPSMsgInfo;
+import shop.liaozalie.zjt.storager.IRedisCatchStorage;
+import shop.liaozalie.zjt.storager.IVideoManagerStorage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.sip.DialogState;
+import java.util.List;
+
+/**
+ * 向已经订阅(移动位置)的上级发送MobilePosition消息
+ * @author lin
+ */
+public class MobilePositionSubscribeHandlerTask implements ISubscribeTask {
+
+    private Logger logger = LoggerFactory.getLogger(MobilePositionSubscribeHandlerTask.class);
+
+    private IRedisCatchStorage redisCatchStorage;
+    private IVideoManagerStorage storager;
+    private ISIPCommanderForPlatform sipCommanderForPlatform;
+    private SubscribeHolder subscribeHolder;
+    private ParentPlatform platform;
+
+    private String sn;
+    private String key;
+
+    public MobilePositionSubscribeHandlerTask(IRedisCatchStorage redisCatchStorage,
+                                              ISIPCommanderForPlatform sipCommanderForPlatform,
+                                              IVideoManagerStorage storager,
+                                              String platformId,
+                                              String sn,
+                                              String key,
+                                              SubscribeHolder subscribeInfo,
+                                              DynamicTask dynamicTask) {
+        this.redisCatchStorage = redisCatchStorage;
+        this.storager = storager;
+        this.platform = storager.queryParentPlatByServerGBId(platformId);
+        this.sn = sn;
+        this.key = key;
+        this.sipCommanderForPlatform = sipCommanderForPlatform;
+        this.subscribeHolder = subscribeInfo;
+    }
+
+    @Override
+    public void run() {
+
+        if (platform == null) {
+            return;
+        }
+        SubscribeInfo subscribe = subscribeHolder.getMobilePositionSubscribe(platform.getServerGBId());
+        if (subscribe != null) {
+
+            // TODO 暂时只处理视频流的回复,后续增加对国标设备的支持
+            List<DeviceChannel> gbStreams = storager.queryGbStreamListInPlatform(platform.getServerGBId());
+            if (gbStreams.size() == 0) {
+                logger.info("发送订阅时发现平台已经没有关联的直播流：{}", platform.getServerGBId());
+                return;
+            }
+            for (DeviceChannel deviceChannel : gbStreams) {
+                String gbId = deviceChannel.getChannelId();
+                GPSMsgInfo gpsMsgInfo = redisCatchStorage.getGpsMsgInfo(gbId);
+                // 无最新位置不发送
+                if (gpsMsgInfo != null) {
+                    // 经纬度都为0不发送
+                    if (gpsMsgInfo.getLng() == 0 && gpsMsgInfo.getLat() == 0) {
+                        continue;
+                    }
+                    // 发送GPS消息
+                    sipCommanderForPlatform.sendNotifyMobilePosition(platform, gpsMsgInfo, subscribe);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void stop() {
+
+    }
+
+    @Override
+    public DialogState getDialogState() {
+        return null;
+    }
+}

@@ -1,0 +1,113 @@
+package shop.liaozalie.zjt.vmanager.gb28181.gbStream;
+
+import shop.liaozalie.zjt.gb28181.bean.GbStream;
+import shop.liaozalie.zjt.storager.IVideoManagerStorage;
+import shop.liaozalie.zjt.vmanager.gb28181.gbStream.bean.GbStreamParam;
+import shop.liaozalie.zjt.service.IGbStreamService;
+import com.github.pagehelper.PageInfo;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.*;
+
+@Api(tags = "视频流关联到级联平台")
+@CrossOrigin
+@RestController
+@RequestMapping("/api/gbStream")
+public class GbStreamController {
+
+    private final static Logger logger = LoggerFactory.getLogger(GbStreamController.class);
+
+    @Autowired
+    private IGbStreamService gbStreamService;
+
+    @Autowired
+    private IVideoManagerStorage storager;
+
+
+    /**
+     * 查询国标通道
+     * @param page 当前页
+     * @param count 每页条数
+     * @param platformId 平台ID
+     * @return
+     */
+    @ApiOperation("查询国标通道")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "page", value = "当前页", required = true , dataTypeClass = Integer.class),
+            @ApiImplicitParam(name = "count", value = "每页条数", required = true , dataTypeClass = Integer.class),
+            @ApiImplicitParam(name = "platformId", value = "平台ID", required = true , dataTypeClass = String.class),
+            @ApiImplicitParam(name = "catalogId", value = "目录ID", required = false , dataTypeClass = String.class),
+            @ApiImplicitParam(name="query", value = "查询内容", required = false , dataTypeClass = String.class),
+            @ApiImplicitParam(name="mediaServerId", value = "流媒体ID", required = false , dataTypeClass = String.class),
+
+    })
+    @GetMapping(value = "/list")
+    @ResponseBody
+    public PageInfo<GbStream> list(@RequestParam(required = true)Integer page,
+                                   @RequestParam(required = true)Integer count,
+                                   @RequestParam(required = true)String platformId,
+                                   @RequestParam(required = false)String catalogId,
+                                   @RequestParam(required = false)String query,
+                                   @RequestParam(required = false)String mediaServerId){
+        if (StringUtils.isEmpty(catalogId)) {
+            catalogId = null;
+        }
+        if (StringUtils.isEmpty(query)) {
+            query = null;
+        }
+        if (StringUtils.isEmpty(mediaServerId)) {
+            mediaServerId = null;
+        }
+
+        // catalogId 为null 查询未在平台下分配的数据
+        // catalogId 不为null 查询平台下这个，目录下的通道
+        return gbStreamService.getAll(page, count, platformId, catalogId, query, mediaServerId);
+    }
+
+
+    /**
+     * 移除国标关联
+     * @param gbStreamParam
+     * @return
+     */
+    @ApiOperation("移除国标关联")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "gbStreamParam", value = "GbStreamParam", required = true,
+                    dataTypeClass = GbStreamParam.class),
+    })
+    @DeleteMapping(value = "/del")
+    @ResponseBody
+    public Object del(@RequestBody GbStreamParam gbStreamParam){
+        if (gbStreamService.delPlatformInfo(gbStreamParam.getPlatformId(), gbStreamParam.getGbStreams())) {
+            return "success";
+        }else {
+            return "fail";
+        }
+
+    }
+
+    /**
+     * 保存国标关联
+     * @param gbStreamParam
+     * @return
+     */
+    @ApiOperation("保存国标关联")
+    @ApiImplicitParams({
+            @ApiImplicitParam(name = "gbStreamParam", value = "GbStreamParam", required = true, dataTypeClass = GbStreamParam.class),
+    })
+    @PostMapping(value = "/add")
+    @ResponseBody
+    public Object add(@RequestBody GbStreamParam gbStreamParam){
+        if (gbStreamService.addPlatformInfo(gbStreamParam.getGbStreams(), gbStreamParam.getPlatformId(), gbStreamParam.getCatalogId())) {
+            return "success";
+        }else {
+            return "fail";
+        }
+    }
+}
