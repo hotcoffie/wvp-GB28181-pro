@@ -11,9 +11,9 @@
       <el-menu-item index="/pushVideoList">推流列表</el-menu-item>
       <el-menu-item index="/streamProxyList">拉流代理</el-menu-item>
       <el-menu-item index="/cloudRecord">云端录像</el-menu-item>
-      <el-menu-item index="/mediaServerManger">节点管理</el-menu-item>
+<!--      <el-menu-item index="/mediaServerManger">节点管理</el-menu-item>-->
       <el-menu-item index="/parentPlatformList/15/1">国标级联</el-menu-item>
-      <el-menu-item v-if="editUser" index="/userManager">用户管理</el-menu-item>
+<!--      <el-menu-item v-if="editUser" index="/userManager">用户管理</el-menu-item>-->
 
       <!--            <el-submenu index="/setting">-->
       <!--              <template slot="title">系统设置</template>-->
@@ -24,7 +24,7 @@
       <!--            <el-menu-item style="float: right;" @click="loginout">退出</el-menu-item>-->
       <el-submenu index="" style="float: right;">
         <template slot="title">欢迎，{{ this.$cookies.get("session").username }}</template>
-        <el-menu-item @click="openDoc">在线文档</el-menu-item>
+<!--        <el-menu-item @click="openDoc">在线文档</el-menu-item>-->
         <el-menu-item >
           <el-switch v-model="alarmNotify" inactive-text="报警信息推送" @change="alarmNotifyChannge"></el-switch>
         </el-menu-item>
